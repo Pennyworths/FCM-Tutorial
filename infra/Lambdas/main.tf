@@ -1,3 +1,19 @@
+# ============================================================================
+# IMPORTANT: Deployment Order
+# ============================================================================
+# Lambda functions require Docker images to exist in ECR BEFORE creation.
+# 
+# Recommended: Use ./deploy.sh which automatically handles placeholder images.
+# 
+# Manual deployment flow:
+# 1. Deploy this module with -target to create ECR repository first
+# 2. Push placeholder or actual images to ECR
+# 3. Deploy Lambda functions (images now exist)
+#
+# If images don't exist, Terraform will fail with:
+# "ResourceInitializationError: Failed to pull image"
+# ============================================================================
+
 terraform {
   required_version = ">= 1.6"
   required_providers {
@@ -115,6 +131,9 @@ resource "aws_ecr_lifecycle_policy" "lambda_images" {
 }
 
 # Lambda function: registerDeviceHandler
+# IMPORTANT: Before applying, ensure the ECR image exists!
+# The image URI must exist in ECR before Terraform can create the Lambda function.
+# Use ./deploy.sh for automated deployment (includes placeholder images), or manually push images first
 resource "aws_lambda_function" "register_device" {
   function_name = "${var.environment}-registerDeviceHandler"
   role          = aws_iam_role.lambda.arn
@@ -123,7 +142,8 @@ resource "aws_lambda_function" "register_device" {
   memory_size   = var.lambda_memory_size
 
   # Container image URI from ECR
-  # Build and push: See backend/Lambda/README.md for Docker build instructions
+  # The image must exist in ECR before creating this Lambda function.
+  # Use: ./deploy.sh (automated) or manually push images before applying
   image_uri = "${aws_ecr_repository.lambda_images.repository_url}:register-device-${var.image_tag}"
 
   vpc_config {
@@ -148,6 +168,7 @@ resource "aws_lambda_function" "register_device" {
 }
 
 # Lambda function: sendMessageHandler
+# IMPORTANT: Ensure ECR image exists before applying (see register_device function comment above)
 resource "aws_lambda_function" "send_message" {
   function_name = "${var.environment}-sendMessageHandler"
   role          = aws_iam_role.lambda.arn
@@ -155,7 +176,7 @@ resource "aws_lambda_function" "send_message" {
   timeout       = var.lambda_timeout
   memory_size   = var.lambda_memory_size
 
-  # Container image URI from ECR
+  # Container image URI from ECR - image must exist in ECR first
   image_uri = "${aws_ecr_repository.lambda_images.repository_url}:send-message-${var.image_tag}"
 
   vpc_config {
@@ -180,6 +201,7 @@ resource "aws_lambda_function" "send_message" {
 }
 
 # Lambda function: testAckHandler
+# IMPORTANT: Ensure ECR image exists before applying (see register_device function comment above)
 resource "aws_lambda_function" "test_ack" {
   function_name = "${var.environment}-testAckHandler"
   role          = aws_iam_role.lambda.arn
@@ -187,7 +209,7 @@ resource "aws_lambda_function" "test_ack" {
   timeout       = var.lambda_timeout
   memory_size   = var.lambda_memory_size
 
-  # Container image URI from ECR
+  # Container image URI from ECR - image must exist in ECR first
   image_uri = "${aws_ecr_repository.lambda_images.repository_url}:test-ack-${var.image_tag}"
 
   vpc_config {
@@ -212,6 +234,7 @@ resource "aws_lambda_function" "test_ack" {
 }
 
 # Lambda function: testStatusHandler
+# IMPORTANT: Ensure ECR image exists before applying (see register_device function comment above)
 resource "aws_lambda_function" "test_status" {
   function_name = "${var.environment}-testStatusHandler"
   role          = aws_iam_role.lambda.arn
@@ -219,7 +242,7 @@ resource "aws_lambda_function" "test_status" {
   timeout       = var.lambda_timeout
   memory_size   = var.lambda_memory_size
 
-  # Container image URI from ECR
+  # Container image URI from ECR - image must exist in ECR first
   image_uri = "${aws_ecr_repository.lambda_images.repository_url}:test-status-${var.image_tag}"
 
   vpc_config {
