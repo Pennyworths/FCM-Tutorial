@@ -54,3 +54,9 @@ variable "db_instance_class" {
   default     = "db.t3.micro"
 }
 
+variable "init_schema_lambda_name" {
+  description = "Name of initSchema Lambda function (optional, for automatic schema initialization)"
+  type        = string
+  default     = ""
+}
+

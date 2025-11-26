@@ -243,3 +243,33 @@ resource "aws_lambda_function" "test_status" {
   }
 }
 
+# Lambda function: initSchema (for database schema initialization)
+resource "aws_lambda_function" "init_schema" {
+  function_name = "${var.environment}-initSchema"
+  role          = aws_iam_role.lambda.arn
+  package_type  = "Image"
+  timeout       = 60  # Longer timeout for schema initialization
+  memory_size   = 256
+
+  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:init-schema-${var.image_tag}"
+
+  vpc_config {
+    subnet_ids         = var.private_subnet_ids
+    security_group_ids = [var.lambda_security_group_id]
+  }
+
+  environment {
+    variables = {
+      RDS_HOST     = var.rds_host
+      RDS_PORT     = tostring(var.rds_port)
+      RDS_DB_NAME  = var.rds_db_name
+      RDS_USERNAME = var.rds_username
+      RDS_PASSWORD = var.rds_password
+    }
+  }
+
+  tags = {
+    Name = "${var.environment}-initSchema"
+  }
+}
+

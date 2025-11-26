@@ -90,3 +90,24 @@ resource "aws_db_instance" "main" {
   }
 }
 
+# Database Schema Initialization
+# Automatically invokes initSchema Lambda after RDS is created and available
+resource "aws_lambda_invocation" "init_schema" {
+  count = var.init_schema_lambda_name != "" ? 1 : 0
+
+  function_name = var.init_schema_lambda_name
+
+  triggers = {
+    rds_endpoint = aws_db_instance.main.endpoint
+    schema_hash  = filemd5("${path.module}/../../backend/Schema/init.sql")
+  }
+
+  input = jsonencode({
+    action = "init_schema"
+  })
+
+  depends_on = [
+    aws_db_instance.main
+  ]
+}
+

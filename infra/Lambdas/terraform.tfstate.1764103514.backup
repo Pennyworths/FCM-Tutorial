@@ -1,0 +1,1057 @@
+{
+  "version": 4,
+  "terraform_version": "1.13.5",
+  "serial": 24,
+  "lineage": "513b9346-6b66-6033-54da-12e3d8d2e355",
+  "outputs": {
+    "ecr_repository_arn": {
+      "value": "arn:aws:ecr:us-east-1:793438971099:repository/dev-lambda-images",
+      "type": "string"
+    },
+    "ecr_repository_url": {
+      "value": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images",
+      "type": "string"
+    },
+    "init_schema_function_name": {
+      "value": "dev-initSchema",
+      "type": "string"
+    },
+    "lambda_role_arn": {
+      "value": "arn:aws:iam::793438971099:role/dev-lambda-role",
+      "type": "string"
+    },
+    "register_device_function_arn": {
+      "value": "arn:aws:lambda:us-east-1:793438971099:function:dev-registerDeviceHandler",
+      "type": "string"
+    },
+    "register_device_function_name": {
+      "value": "dev-registerDeviceHandler",
+      "type": "string"
+    },
+    "send_message_function_arn": {
+      "value": "arn:aws:lambda:us-east-1:793438971099:function:dev-sendMessageHandler",
+      "type": "string"
+    },
+    "send_message_function_name": {
+      "value": "dev-sendMessageHandler",
+      "type": "string"
+    },
+    "test_ack_function_arn": {
+      "value": "arn:aws:lambda:us-east-1:793438971099:function:dev-testAckHandler",
+      "type": "string"
+    },
+    "test_ack_function_name": {
+      "value": "dev-testAckHandler",
+      "type": "string"
+    },
+    "test_status_function_arn": {
+      "value": "arn:aws:lambda:us-east-1:793438971099:function:dev-testStatusHandler",
+      "type": "string"
+    },
+    "test_status_function_name": {
+      "value": "dev-testStatusHandler",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_ecr_lifecycle_policy",
+      "name": "lambda_images",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "dev-lambda-images",
+            "policy": "{\"rules\":[{\"action\":{\"type\":\"expire\"},\"description\":\"Keep last 10 images\",\"rulePriority\":1,\"selection\":{\"countNumber\":10,\"countType\":\"imageCountMoreThan\",\"tagStatus\":\"any\"}}]}",
+            "registry_id": "793438971099",
+            "repository": "dev-lambda-images"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_ecr_repository.lambda_images"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_ecr_repository",
+      "name": "lambda_images",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:ecr:us-east-1:793438971099:repository/dev-lambda-images",
+            "encryption_configuration": [
+              {
+                "encryption_type": "AES256",
+                "kms_key": ""
+              }
+            ],
+            "force_delete": null,
+            "id": "dev-lambda-images",
+            "image_scanning_configuration": [
+              {
+                "scan_on_push": true
+              }
+            ],
+            "image_tag_mutability": "MUTABLE",
+            "name": "dev-lambda-images",
+            "registry_id": "793438971099",
+            "repository_url": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images",
+            "tags": {
+              "Name": "dev-lambda-images"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-lambda-images",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjoxMjAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "lambda",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:iam::793438971099:role/dev-lambda-role",
+            "assume_role_policy": "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
+            "create_date": "2025-11-25T02:24:48Z",
+            "description": "",
+            "force_detach_policies": false,
+            "id": "dev-lambda-role",
+            "inline_policy": [
+              {
+                "name": "dev-lambda-secrets-policy",
+                "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"secretsmanager:GetSecretValue\",\"secretsmanager:DescribeSecret\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:secretsmanager:us-east-1:793438971099:secret:dev-fcm-credentials-d6gXKp\"}]}"
+              }
+            ],
+            "managed_policy_arns": [
+              "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+            ],
+            "max_session_duration": 3600,
+            "name": "dev-lambda-role",
+            "name_prefix": "",
+            "path": "/",
+            "permissions_boundary": "",
+            "tags": {
+              "Name": "dev-lambda-role"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-lambda-role",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "unique_id": "AROA3RPFF4TNQMHUDFABP"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "lambda_secrets",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "dev-lambda-role:dev-lambda-secrets-policy",
+            "name": "dev-lambda-secrets-policy",
+            "name_prefix": "",
+            "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"secretsmanager:GetSecretValue\",\"secretsmanager:DescribeSecret\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:secretsmanager:us-east-1:793438971099:secret:dev-fcm-credentials-d6gXKp\"}]}",
+            "role": "dev-lambda-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "lambda_logs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "dev-lambda-role-20251125022449720300000002",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+            "role": "dev-lambda-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_role_policy_attachment",
+      "name": "lambda_vpc",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "dev-lambda-role-20251125022449404400000001",
+            "policy_arn": "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole",
+            "role": "dev-lambda-role"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA==",
+          "dependencies": [
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "init_schema",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "architectures": [
+              "x86_64"
+            ],
+            "arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-initSchema",
+            "code_sha256": "bac48de4338d88512af5d44876d4a3132a03981c6b097901722a8daec21ce899",
+            "code_signing_config_arn": "",
+            "dead_letter_config": [],
+            "description": "",
+            "environment": [
+              {
+                "variables": {
+                  "RDS_DB_NAME": "fcmdb",
+                  "RDS_HOST": "dev-postgres.cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+                  "RDS_PASSWORD": "your_db_password",
+                  "RDS_PORT": "5432",
+                  "RDS_USERNAME": "your_db_username"
+                }
+              }
+            ],
+            "ephemeral_storage": [
+              {
+                "size": 512
+              }
+            ],
+            "file_system_config": [],
+            "filename": null,
+            "function_name": "dev-initSchema",
+            "handler": "",
+            "id": "dev-initSchema",
+            "image_config": [],
+            "image_uri": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images:init-schema-latest",
+            "invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-initSchema/invocations",
+            "kms_key_arn": "",
+            "last_modified": "2025-11-25T20:26:40.117+0000",
+            "layers": null,
+            "logging_config": [
+              {
+                "application_log_level": "",
+                "log_format": "Text",
+                "log_group": "/aws/lambda/dev-initSchema",
+                "system_log_level": ""
+              }
+            ],
+            "memory_size": 256,
+            "package_type": "Image",
+            "publish": false,
+            "qualified_arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-initSchema:$LATEST",
+            "qualified_invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-initSchema:$LATEST/invocations",
+            "replace_security_groups_on_destroy": null,
+            "replacement_security_group_ids": null,
+            "reserved_concurrent_executions": -1,
+            "role": "arn:aws:iam::793438971099:role/dev-lambda-role",
+            "runtime": "",
+            "s3_bucket": null,
+            "s3_key": null,
+            "s3_object_version": null,
+            "signing_job_arn": "",
+            "signing_profile_version_arn": "",
+            "skip_destroy": false,
+            "snap_start": [],
+            "source_code_hash": "",
+            "source_code_size": 0,
+            "tags": {
+              "Name": "dev-initSchema"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-initSchema",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "timeout": 60,
+            "timeouts": null,
+            "tracing_config": [
+              {
+                "mode": "PassThrough"
+              }
+            ],
+            "version": "$LATEST",
+            "vpc_config": [
+              {
+                "ipv6_allowed_for_dual_stack": false,
+                "security_group_ids": [
+                  "sg-0bd16866edfd28d0f"
+                ],
+                "subnet_ids": [
+                  "subnet-091135ebd370d0a7a",
+                  "subnet-0f6a0e072e33047ed"
+                ],
+                "vpc_id": "vpc-053baa57223fa9755"
+              }
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_PASSWORD",
+                  "type": "string"
+                }
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_USERNAME",
+                  "type": "string"
+                }
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_ecr_repository.lambda_images",
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "register_device",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "architectures": [
+              "x86_64"
+            ],
+            "arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-registerDeviceHandler",
+            "code_sha256": "88d6a70e60d4d9e14545d554c40742125061bf1747facc1b63cf92b2ffa5618d",
+            "code_signing_config_arn": "",
+            "dead_letter_config": [],
+            "description": "",
+            "environment": [
+              {
+                "variables": {
+                  "RDS_DB_NAME": "fcmdb",
+                  "RDS_HOST": "placeholder",
+                  "RDS_PASSWORD": "your_db_password",
+                  "RDS_PORT": "5432",
+                  "RDS_USERNAME": "your_db_username",
+                  "SECRET_ARN": "arn:aws:secretsmanager:us-east-1:793438971099:secret:dev-fcm-credentials-d6gXKp"
+                }
+              }
+            ],
+            "ephemeral_storage": [
+              {
+                "size": 512
+              }
+            ],
+            "file_system_config": [],
+            "filename": null,
+            "function_name": "dev-registerDeviceHandler",
+            "handler": "",
+            "id": "dev-registerDeviceHandler",
+            "image_config": [],
+            "image_uri": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images:register-device-latest",
+            "invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-registerDeviceHandler/invocations",
+            "kms_key_arn": "",
+            "last_modified": "2025-11-25T19:44:08.000+0000",
+            "layers": [],
+            "logging_config": [
+              {
+                "application_log_level": "",
+                "log_format": "Text",
+                "log_group": "/aws/lambda/dev-registerDeviceHandler",
+                "system_log_level": ""
+              }
+            ],
+            "memory_size": 256,
+            "package_type": "Image",
+            "publish": false,
+            "qualified_arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-registerDeviceHandler:$LATEST",
+            "qualified_invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-registerDeviceHandler:$LATEST/invocations",
+            "replace_security_groups_on_destroy": null,
+            "replacement_security_group_ids": null,
+            "reserved_concurrent_executions": -1,
+            "role": "arn:aws:iam::793438971099:role/dev-lambda-role",
+            "runtime": "",
+            "s3_bucket": null,
+            "s3_key": null,
+            "s3_object_version": null,
+            "signing_job_arn": "",
+            "signing_profile_version_arn": "",
+            "skip_destroy": false,
+            "snap_start": [],
+            "source_code_hash": "",
+            "source_code_size": 0,
+            "tags": {
+              "Name": "dev-registerDeviceHandler"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-registerDeviceHandler",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "timeout": 30,
+            "timeouts": null,
+            "tracing_config": [
+              {
+                "mode": "PassThrough"
+              }
+            ],
+            "version": "$LATEST",
+            "vpc_config": [
+              {
+                "ipv6_allowed_for_dual_stack": false,
+                "security_group_ids": [
+                  "sg-0bd16866edfd28d0f"
+                ],
+                "subnet_ids": [
+                  "subnet-091135ebd370d0a7a",
+                  "subnet-0f6a0e072e33047ed"
+                ],
+                "vpc_id": "vpc-053baa57223fa9755"
+              }
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_PASSWORD",
+                  "type": "string"
+                }
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_USERNAME",
+                  "type": "string"
+                }
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_ecr_repository.lambda_images",
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "send_message",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "architectures": [
+              "x86_64"
+            ],
+            "arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-sendMessageHandler",
+            "code_sha256": "88d6a70e60d4d9e14545d554c40742125061bf1747facc1b63cf92b2ffa5618d",
+            "code_signing_config_arn": "",
+            "dead_letter_config": [],
+            "description": "",
+            "environment": [
+              {
+                "variables": {
+                  "RDS_DB_NAME": "fcmdb",
+                  "RDS_HOST": "placeholder",
+                  "RDS_PASSWORD": "your_db_password",
+                  "RDS_PORT": "5432",
+                  "RDS_USERNAME": "your_db_username",
+                  "SECRET_ARN": "arn:aws:secretsmanager:us-east-1:793438971099:secret:dev-fcm-credentials-d6gXKp"
+                }
+              }
+            ],
+            "ephemeral_storage": [
+              {
+                "size": 512
+              }
+            ],
+            "file_system_config": [],
+            "filename": null,
+            "function_name": "dev-sendMessageHandler",
+            "handler": "",
+            "id": "dev-sendMessageHandler",
+            "image_config": [],
+            "image_uri": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images:send-message-latest",
+            "invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-sendMessageHandler/invocations",
+            "kms_key_arn": "",
+            "last_modified": "2025-11-25T19:44:08.000+0000",
+            "layers": [],
+            "logging_config": [
+              {
+                "application_log_level": "",
+                "log_format": "Text",
+                "log_group": "/aws/lambda/dev-sendMessageHandler",
+                "system_log_level": ""
+              }
+            ],
+            "memory_size": 256,
+            "package_type": "Image",
+            "publish": false,
+            "qualified_arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-sendMessageHandler:$LATEST",
+            "qualified_invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-sendMessageHandler:$LATEST/invocations",
+            "replace_security_groups_on_destroy": null,
+            "replacement_security_group_ids": null,
+            "reserved_concurrent_executions": -1,
+            "role": "arn:aws:iam::793438971099:role/dev-lambda-role",
+            "runtime": "",
+            "s3_bucket": null,
+            "s3_key": null,
+            "s3_object_version": null,
+            "signing_job_arn": "",
+            "signing_profile_version_arn": "",
+            "skip_destroy": false,
+            "snap_start": [],
+            "source_code_hash": "",
+            "source_code_size": 0,
+            "tags": {
+              "Name": "dev-sendMessageHandler"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-sendMessageHandler",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "timeout": 30,
+            "timeouts": null,
+            "tracing_config": [
+              {
+                "mode": "PassThrough"
+              }
+            ],
+            "version": "$LATEST",
+            "vpc_config": [
+              {
+                "ipv6_allowed_for_dual_stack": false,
+                "security_group_ids": [
+                  "sg-0bd16866edfd28d0f"
+                ],
+                "subnet_ids": [
+                  "subnet-091135ebd370d0a7a",
+                  "subnet-0f6a0e072e33047ed"
+                ],
+                "vpc_id": "vpc-053baa57223fa9755"
+              }
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_PASSWORD",
+                  "type": "string"
+                }
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_USERNAME",
+                  "type": "string"
+                }
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_ecr_repository.lambda_images",
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "test_ack",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "architectures": [
+              "x86_64"
+            ],
+            "arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-testAckHandler",
+            "code_sha256": "88d6a70e60d4d9e14545d554c40742125061bf1747facc1b63cf92b2ffa5618d",
+            "code_signing_config_arn": "",
+            "dead_letter_config": [],
+            "description": "",
+            "environment": [
+              {
+                "variables": {
+                  "RDS_DB_NAME": "fcmdb",
+                  "RDS_HOST": "placeholder",
+                  "RDS_PASSWORD": "your_db_password",
+                  "RDS_PORT": "5432",
+                  "RDS_USERNAME": "your_db_username",
+                  "SECRET_ARN": "arn:aws:secretsmanager:us-east-1:793438971099:secret:dev-fcm-credentials-d6gXKp"
+                }
+              }
+            ],
+            "ephemeral_storage": [
+              {
+                "size": 512
+              }
+            ],
+            "file_system_config": [],
+            "filename": null,
+            "function_name": "dev-testAckHandler",
+            "handler": "",
+            "id": "dev-testAckHandler",
+            "image_config": [],
+            "image_uri": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images:test-ack-latest",
+            "invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-testAckHandler/invocations",
+            "kms_key_arn": "",
+            "last_modified": "2025-11-25T19:44:08.000+0000",
+            "layers": [],
+            "logging_config": [
+              {
+                "application_log_level": "",
+                "log_format": "Text",
+                "log_group": "/aws/lambda/dev-testAckHandler",
+                "system_log_level": ""
+              }
+            ],
+            "memory_size": 256,
+            "package_type": "Image",
+            "publish": false,
+            "qualified_arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-testAckHandler:$LATEST",
+            "qualified_invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-testAckHandler:$LATEST/invocations",
+            "replace_security_groups_on_destroy": null,
+            "replacement_security_group_ids": null,
+            "reserved_concurrent_executions": -1,
+            "role": "arn:aws:iam::793438971099:role/dev-lambda-role",
+            "runtime": "",
+            "s3_bucket": null,
+            "s3_key": null,
+            "s3_object_version": null,
+            "signing_job_arn": "",
+            "signing_profile_version_arn": "",
+            "skip_destroy": false,
+            "snap_start": [],
+            "source_code_hash": "",
+            "source_code_size": 0,
+            "tags": {
+              "Name": "dev-testAckHandler"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-testAckHandler",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "timeout": 30,
+            "timeouts": null,
+            "tracing_config": [
+              {
+                "mode": "PassThrough"
+              }
+            ],
+            "version": "$LATEST",
+            "vpc_config": [
+              {
+                "ipv6_allowed_for_dual_stack": false,
+                "security_group_ids": [
+                  "sg-0bd16866edfd28d0f"
+                ],
+                "subnet_ids": [
+                  "subnet-091135ebd370d0a7a",
+                  "subnet-0f6a0e072e33047ed"
+                ],
+                "vpc_id": "vpc-053baa57223fa9755"
+              }
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_PASSWORD",
+                  "type": "string"
+                }
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_USERNAME",
+                  "type": "string"
+                }
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_ecr_repository.lambda_images",
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "test_status",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "architectures": [
+              "x86_64"
+            ],
+            "arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-testStatusHandler",
+            "code_sha256": "88d6a70e60d4d9e14545d554c40742125061bf1747facc1b63cf92b2ffa5618d",
+            "code_signing_config_arn": "",
+            "dead_letter_config": [],
+            "description": "",
+            "environment": [
+              {
+                "variables": {
+                  "RDS_DB_NAME": "fcmdb",
+                  "RDS_HOST": "placeholder",
+                  "RDS_PASSWORD": "your_db_password",
+                  "RDS_PORT": "5432",
+                  "RDS_USERNAME": "your_db_username",
+                  "SECRET_ARN": "arn:aws:secretsmanager:us-east-1:793438971099:secret:dev-fcm-credentials-d6gXKp"
+                }
+              }
+            ],
+            "ephemeral_storage": [
+              {
+                "size": 512
+              }
+            ],
+            "file_system_config": [],
+            "filename": null,
+            "function_name": "dev-testStatusHandler",
+            "handler": "",
+            "id": "dev-testStatusHandler",
+            "image_config": [],
+            "image_uri": "793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images:test-status-latest",
+            "invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-testStatusHandler/invocations",
+            "kms_key_arn": "",
+            "last_modified": "2025-11-25T19:44:08.000+0000",
+            "layers": [],
+            "logging_config": [
+              {
+                "application_log_level": "",
+                "log_format": "Text",
+                "log_group": "/aws/lambda/dev-testStatusHandler",
+                "system_log_level": ""
+              }
+            ],
+            "memory_size": 256,
+            "package_type": "Image",
+            "publish": false,
+            "qualified_arn": "arn:aws:lambda:us-east-1:793438971099:function:dev-testStatusHandler:$LATEST",
+            "qualified_invoke_arn": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:793438971099:function:dev-testStatusHandler:$LATEST/invocations",
+            "replace_security_groups_on_destroy": null,
+            "replacement_security_group_ids": null,
+            "reserved_concurrent_executions": -1,
+            "role": "arn:aws:iam::793438971099:role/dev-lambda-role",
+            "runtime": "",
+            "s3_bucket": null,
+            "s3_key": null,
+            "s3_object_version": null,
+            "signing_job_arn": "",
+            "signing_profile_version_arn": "",
+            "skip_destroy": false,
+            "snap_start": [],
+            "source_code_hash": "",
+            "source_code_size": 0,
+            "tags": {
+              "Name": "dev-testStatusHandler"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-testStatusHandler",
+              "Project": "FCM",
+              "Purpose": "Lambda"
+            },
+            "timeout": 30,
+            "timeouts": null,
+            "tracing_config": [
+              {
+                "mode": "PassThrough"
+              }
+            ],
+            "version": "$LATEST",
+            "vpc_config": [
+              {
+                "ipv6_allowed_for_dual_stack": false,
+                "security_group_ids": [
+                  "sg-0bd16866edfd28d0f"
+                ],
+                "subnet_ids": [
+                  "subnet-091135ebd370d0a7a",
+                  "subnet-0f6a0e072e33047ed"
+                ],
+                "vpc_id": "vpc-053baa57223fa9755"
+              }
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_PASSWORD",
+                  "type": "string"
+                }
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "environment"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": 0,
+                  "type": "number"
+                }
+              },
+              {
+                "type": "get_attr",
+                "value": "variables"
+              },
+              {
+                "type": "index",
+                "value": {
+                  "value": "RDS_USERNAME",
+                  "type": "string"
+                }
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6NjAwMDAwMDAwMDAwLCJ1cGRhdGUiOjYwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_ecr_repository.lambda_images",
+            "aws_iam_role.lambda"
+          ]
+        }
+      ]
+    }
+  ],
+  "check_results": null
+}
