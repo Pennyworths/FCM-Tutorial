@@ -11,3 +11,4 @@ terraform.tfstate.backup
 service-account.json
 *.pem
 *.key
+.env
