@@ -12,3 +12,26 @@ service-account.json
 *.pem
 *.key
 .env
+
+# Shell script temporary files
+*.log
+*.out
+*.err
+/tmp/
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Deployment artifacts
+*.zip
+*.tar.gz
+response.json
+/tmp/*.json
+
+# Keep main deployment script (explicitly track it)
+!deploy.sh
+
+# Ignore individual deployment scripts
+deploy-register.sh
