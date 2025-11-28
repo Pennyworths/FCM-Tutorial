@@ -63,3 +63,27 @@ resource "aws_secretsmanager_secret_version" "fcm_credentials" {
   }
 }
 
+# Secrets Manager Secret for RDS password
+resource "aws_secretsmanager_secret" "rds_password" {
+  name                    = "${var.environment}-rds-password"
+  description             = "RDS database password"
+  recovery_window_in_days = var.recovery_window_in_days
+
+  tags = {
+    Name = "${var.environment}-rds-password"
+  }
+}
+
+# Secret version containing the RDS password
+resource "aws_secretsmanager_secret_version" "rds_password" {
+  secret_id     = aws_secretsmanager_secret.rds_password.id
+  secret_string = var.rds_password
+
+  lifecycle {
+    precondition {
+      condition     = var.rds_password != ""
+      error_message = "rds_password must be provided"
+    }
+  }
+}
+
