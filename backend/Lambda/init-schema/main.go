@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	dbgen "github.com/fcm-tutorial/lambda/init-schema/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,16 +17,46 @@ func main() {
 	lambda.Start(handler)
 }
 
+// getSecret retrieves a secret value from AWS Secrets Manager
+func getSecret(ctx context.Context, secretARN string) (string, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	client := secretsmanager.NewFromConfig(cfg)
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: &secretARN,
+	}
+
+	result, err := client.GetSecretValue(ctx, input)
+	if err != nil {
+		return "", fmt.Errorf("failed to get secret value: %w", err)
+	}
+
+	if result.SecretString == nil {
+		return "", fmt.Errorf("secret value is nil")
+	}
+
+	return *result.SecretString, nil
+}
+
 func handler(ctx context.Context) error {
 	// Get RDS connection info from environment variables
 	rdsHost := os.Getenv("RDS_HOST")
 	rdsPort := os.Getenv("RDS_PORT")
 	rdsDBName := os.Getenv("RDS_DB_NAME")
 	rdsUsername := os.Getenv("RDS_USERNAME")
-	rdsPassword := os.Getenv("RDS_PASSWORD")
+	rdsPasswordSecretARN := os.Getenv("RDS_PASSWORD_SECRET_ARN")
 
-	if rdsHost == "" || rdsPort == "" || rdsDBName == "" || rdsUsername == "" || rdsPassword == "" {
-		return fmt.Errorf("missing required RDS environment variables: RDS_HOST, RDS_PORT, RDS_DB_NAME, RDS_USERNAME, RDS_PASSWORD")
+	if rdsHost == "" || rdsPort == "" || rdsDBName == "" || rdsUsername == "" || rdsPasswordSecretARN == "" {
+		return fmt.Errorf("missing required RDS environment variables: RDS_HOST, RDS_PORT, RDS_DB_NAME, RDS_USERNAME, RDS_PASSWORD_SECRET_ARN")
+	}
+
+	// Get RDS password from Secrets Manager
+	rdsPassword, err := getSecret(ctx, rdsPasswordSecretARN)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve RDS password from Secrets Manager: %w", err)
 	}
 
 	// Build connection string

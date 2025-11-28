@@ -73,8 +73,8 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Policy for Secrets Manager access - Required to read FCM credentials
-# Allows Lambda to read FCM service account JSON from Secrets Manager
+# Policy for Secrets Manager access - Required to read FCM credentials and RDS password
+# Allows Lambda to read secrets from Secrets Manager
 resource "aws_iam_role_policy" "lambda_secrets" {
   name = "${var.environment}-lambda-secrets-policy"
   role = aws_iam_role.lambda.id
@@ -88,7 +88,10 @@ resource "aws_iam_role_policy" "lambda_secrets" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = var.secrets_manager_secret_arn
+        Resource = [
+          var.secrets_manager_secret_arn,
+          var.rds_password_secret_arn
+        ]
       }
     ]
   })
@@ -153,12 +156,12 @@ resource "aws_lambda_function" "register_device" {
 
   environment {
     variables = {
-      RDS_HOST     = var.rds_host
-      RDS_PORT     = tostring(var.rds_port)
-      RDS_DB_NAME  = var.rds_db_name
-      RDS_USERNAME = var.rds_username
-      RDS_PASSWORD = var.rds_password
-      SECRET_ARN   = var.secrets_manager_secret_arn
+      RDS_HOST                = var.rds_host
+      RDS_PORT                = tostring(var.rds_port)
+      RDS_DB_NAME             = var.rds_db_name
+      RDS_USERNAME            = var.rds_username
+      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
+      SECRET_ARN              = var.secrets_manager_secret_arn
     }
   }
 
@@ -220,12 +223,12 @@ resource "aws_lambda_function" "test_ack" {
 
   environment {
     variables = {
-      RDS_HOST     = var.rds_host
-      RDS_PORT     = tostring(var.rds_port)
-      RDS_DB_NAME  = var.rds_db_name
-      RDS_USERNAME = var.rds_username
-      RDS_PASSWORD = var.rds_password
-      SECRET_ARN   = var.secrets_manager_secret_arn
+      RDS_HOST                = var.rds_host
+      RDS_PORT                = tostring(var.rds_port)
+      RDS_DB_NAME             = var.rds_db_name
+      RDS_USERNAME            = var.rds_username
+      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
+      SECRET_ARN              = var.secrets_manager_secret_arn
     }
   }
 
@@ -253,12 +256,12 @@ resource "aws_lambda_function" "test_status" {
 
   environment {
     variables = {
-      RDS_HOST     = var.rds_host
-      RDS_PORT     = tostring(var.rds_port)
-      RDS_DB_NAME  = var.rds_db_name
-      RDS_USERNAME = var.rds_username
-      RDS_PASSWORD = var.rds_password
-      SECRET_ARN   = var.secrets_manager_secret_arn
+      RDS_HOST                = var.rds_host
+      RDS_PORT                = tostring(var.rds_port)
+      RDS_DB_NAME             = var.rds_db_name
+      RDS_USERNAME            = var.rds_username
+      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
+      SECRET_ARN              = var.secrets_manager_secret_arn
     }
   }
 
@@ -284,11 +287,11 @@ resource "aws_lambda_function" "init_schema" {
 
   environment {
     variables = {
-      RDS_HOST     = var.rds_host
-      RDS_PORT     = tostring(var.rds_port)
-      RDS_DB_NAME  = var.rds_db_name
-      RDS_USERNAME = var.rds_username
-      RDS_PASSWORD = var.rds_password
+      RDS_HOST                = var.rds_host
+      RDS_PORT                = tostring(var.rds_port)
+      RDS_DB_NAME             = var.rds_db_name
+      RDS_USERNAME            = var.rds_username
+      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
     }
   }
 
