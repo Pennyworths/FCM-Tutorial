@@ -90,6 +90,12 @@ resource "aws_db_instance" "main" {
   }
 }
 
+# Local values for schema file path
+# Defaults to standard project structure if not provided
+locals {
+  init_schema_file_path = var.init_schema_file_path != "" ? var.init_schema_file_path : "${path.module}/../../backend/Schema/init.sql"
+}
+
 # Database Schema Initialization
 # Automatically invokes initSchema Lambda after RDS is created and available
 resource "aws_lambda_invocation" "init_schema" {
@@ -99,7 +105,7 @@ resource "aws_lambda_invocation" "init_schema" {
 
   triggers = {
     rds_endpoint = aws_db_instance.main.endpoint
-    schema_hash  = filemd5("${path.module}/../../backend/Schema/init.sql")
+    schema_hash  = filemd5(local.init_schema_file_path)
   }
 
   input = jsonencode({
