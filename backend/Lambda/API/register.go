@@ -19,9 +19,7 @@ type RegisterDeviceRequest struct {
 }
 
 type RegisterDeviceResponse struct {
-	Success   bool   `json:"success"`
-	Message   string `json:"message"`
-	RequestId string `json:"request_id"`
+	OK bool `json:"ok"`
 }
 
 // RegisterDeviceHandler is the Lambda handler for device registration
@@ -101,11 +99,9 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 	logger.Info(ctx, "Device registered successfully: user_id=%s, device_id=%s",
 		registerDeviceRequest.UserId, registerDeviceRequest.DeviceId)
 
-	// Prepare success response
+	// Prepare success response (README requires: { "ok": true })
 	response := RegisterDeviceResponse{
-		Success:   true,
-		Message:   "Device registered successfully",
-		RequestId: request.RequestContext.RequestID,
+		OK: true,
 	}
 
 	return logger.Success(ctx, response)
