@@ -15,6 +15,34 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # AWS Profile (use terraform profile if AWS_PROFILE not set)
 export AWS_PROFILE="${AWS_PROFILE:-terraform}"
 
+# Load environment variables for Terraform
+# These can be set in .env file or exported before running deploy.sh
+# Required: DB_USERNAME, DB_PASSWORD, FCM_SERVICE_ACCOUNT_JSON or FCM_SERVICE_ACCOUNT_JSON_FILE
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    echo -e "${BLUE}Loading environment variables from .env file...${NC}"
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
+# Set Terraform variables from environment variables
+export TF_VAR_db_username="${DB_USERNAME:-}"
+export TF_VAR_db_password="${DB_PASSWORD:-}"
+export TF_VAR_rds_username="${RDS_USERNAME:-${DB_USERNAME:-}}"
+export TF_VAR_rds_password="${RDS_PASSWORD:-${DB_PASSWORD:-}}"
+
+# FCM Service Account JSON can be provided as:
+# 1. FCM_SERVICE_ACCOUNT_JSON (JSON string)
+# 2. FCM_SERVICE_ACCOUNT_JSON_FILE (file path)
+if [ -n "$FCM_SERVICE_ACCOUNT_JSON" ]; then
+    export TF_VAR_fcm_service_account_json="$FCM_SERVICE_ACCOUNT_JSON"
+elif [ -n "$FCM_SERVICE_ACCOUNT_JSON_FILE" ]; then
+    export TF_VAR_fcm_service_account_json_file="$FCM_SERVICE_ACCOUNT_JSON_FILE"
+elif [ -f "$PROJECT_ROOT/service-account.json" ]; then
+    # Fallback to service-account.json in project root
+    export TF_VAR_fcm_service_account_json_file="$PROJECT_ROOT/service-account.json"
+fi
+
 echo -e "${BLUE}Starting FCM Infrastructure Deployment${NC}"
 echo -e "${BLUE}===========================================${NC}\n"
 
@@ -36,6 +64,14 @@ terraform_apply() {
     echo -e "${BLUE}Initializing Terraform...${NC}"
     terraform init -upgrade
     
+    # Refresh state to sync with actual resources (handles interrupted deployments)
+    echo -e "${BLUE}Refreshing state...${NC}"
+    if [ ${#extra_vars[@]} -eq 0 ]; then
+        terraform refresh -auto-approve > /dev/null 2>&1 || true
+    else
+        terraform refresh -auto-approve "${extra_vars[@]}" > /dev/null 2>&1 || true
+    fi
+    
     echo -e "${BLUE}Planning...${NC}"
     if [ ${#extra_vars[@]} -eq 0 ]; then
         terraform plan
@@ -55,6 +91,7 @@ terraform_apply() {
 
 # Step 1: Deploy VPC
 print_step "1" "Deploying VPC"
+# VPC doesn't need extra vars, so we can use the simple form
 terraform_apply "infra/VPC" "VPC"
 
 # Get VPC outputs
@@ -72,19 +109,25 @@ echo -e "  Lambda SG ID: $LAMBDA_SG_ID"
 print_step "2" "Deploying RDS"
 cd "$PROJECT_ROOT/infra/RDS"
 
-# Check if terraform.tfvars exists and has db credentials
-if [ ! -f terraform.tfvars ] || ! grep -q "db_username" terraform.tfvars || ! grep -q "db_password" terraform.tfvars; then
-    echo -e "${RED}Warning: terraform.tfvars may not have db_username and db_password${NC}"
-    echo -e "${YELLOW}Please ensure infra/RDS/terraform.tfvars has:${NC}"
-    echo -e "  db_username = \"your_username\""
-    echo -e "  db_password = \"your_password\""
-    read -p "Press Enter to continue or Ctrl+C to abort..."
+# Check if required environment variables are set
+if [ -z "$TF_VAR_db_username" ] || [ -z "$TF_VAR_db_password" ]; then
+    echo -e "${RED}Error: DB credentials not found!${NC}"
+    echo -e "${YELLOW}Please set the following environment variables:${NC}"
+    echo -e "  export DB_USERNAME=\"your_username\""
+    echo -e "  export DB_PASSWORD=\"your_password\""
+    echo -e "${YELLOW}Or create a .env file in the project root with:${NC}"
+    echo -e "  DB_USERNAME=your_username"
+    echo -e "  DB_PASSWORD=your_password"
+    exit 1
 fi
 
+# RDS needs VPC info, but we'll refresh state first to handle existing resources
 terraform_apply "infra/RDS" "RDS" \
     -var="vpc_id=$VPC_ID" \
     -var="private_subnet_ids=$PRIVATE_SUBNET_IDS" \
-    -var="lambda_security_group_id=$LAMBDA_SG_ID"
+    -var="lambda_security_group_id=$LAMBDA_SG_ID" \
+    -var="db_username=$TF_VAR_db_username" \
+    -var="db_password=$TF_VAR_db_password"
 
 # Get RDS outputs
 cd "$PROJECT_ROOT/infra/RDS"
@@ -101,10 +144,15 @@ echo -e "  RDS DB Name: $RDS_DB_NAME"
 print_step "3" "Deploying Secrets Manager"
 cd "$PROJECT_ROOT/infra/Secrets"
 
-# Check if service-account.json exists
-if [ ! -f "$PROJECT_ROOT/service-account.json" ]; then
-    echo -e "${RED}Error: service-account.json not found in project root!${NC}"
-    echo -e "${YELLOW}Please ensure service-account.json exists at: $PROJECT_ROOT/service-account.json${NC}"
+# Check if FCM service account JSON is provided
+if [ -z "$TF_VAR_fcm_service_account_json" ] && [ -z "$TF_VAR_fcm_service_account_json_file" ]; then
+    echo -e "${RED}Error: FCM service account JSON not found!${NC}"
+    echo -e "${YELLOW}Please provide one of the following:${NC}"
+    echo -e "  1. Set FCM_SERVICE_ACCOUNT_JSON environment variable (JSON string)"
+    echo -e "  2. Set FCM_SERVICE_ACCOUNT_JSON_FILE environment variable (file path)"
+    echo -e "  3. Place service-account.json in project root"
+    echo -e "${YELLOW}Or add to .env file:${NC}"
+    echo -e "  FCM_SERVICE_ACCOUNT_JSON_FILE=/path/to/service-account.json"
     exit 1
 fi
 
@@ -121,20 +169,23 @@ echo -e "  Secret ARN: $SECRET_ARN"
 print_step "4a" "Creating ECR Repository and IAM Roles for Lambda"
 cd "$PROJECT_ROOT/infra/Lambdas"
 
-# Check if terraform.tfvars exists and has RDS credentials
-if [ ! -f terraform.tfvars ] || ! grep -q "rds_username" terraform.tfvars || ! grep -q "rds_password" terraform.tfvars; then
-    echo -e "${RED}Warning: terraform.tfvars may not have rds_username and rds_password${NC}"
-    echo -e "${YELLOW}Please ensure infra/Lambdas/terraform.tfvars has:${NC}"
-    echo -e "  rds_username = \"your_username\" (same as RDS)"
-    echo -e "  rds_password = \"your_password\" (same as RDS)"
-    read -p "Press Enter to continue or Ctrl+C to abort..."
+# Check if required environment variables are set
+if [ -z "$TF_VAR_rds_username" ] || [ -z "$TF_VAR_rds_password" ]; then
+    echo -e "${RED}Error: RDS credentials not found!${NC}"
+    echo -e "${YELLOW}Please set the following environment variables:${NC}"
+    echo -e "  export RDS_USERNAME=\"your_username\" (or DB_USERNAME)"
+    echo -e "  export RDS_PASSWORD=\"your_password\" (or DB_PASSWORD)"
+    echo -e "${YELLOW}Or create a .env file in the project root with:${NC}"
+    echo -e "  RDS_USERNAME=your_username"
+    echo -e "  RDS_PASSWORD=your_password"
+    exit 1
 fi
 
 # Initialize Terraform
 echo -e "${BLUE}Initializing Terraform...${NC}"
 terraform init -upgrade
 
-# Prepare terraform variables array (Terraform will auto-load terraform.tfvars for other vars)
+# Prepare terraform variables array (Terraform variables are set via TF_VAR_* environment variables)
 TF_VARS=(
     "-var=vpc_id=$VPC_ID"
     "-var=private_subnet_ids=$PRIVATE_SUBNET_IDS"
@@ -169,8 +220,8 @@ fi
 
 echo -e "${GREEN}ECR Repository: $ECR_REPO_URL${NC}"
 
-# Step 4b: Push placeholder images to ECR
-print_step "4b" "Pushing Placeholder Images to ECR"
+# Step 4b: Build and push Lambda images to ECR
+print_step "4b" "Building and Pushing Lambda Images to ECR"
 
 echo -e "${BLUE}Creating and pushing placeholder images...${NC}"
 
@@ -193,38 +244,108 @@ fi
 
 echo -e "${GREEN}Base image pulled${NC}\n"
 
-# Create and push placeholder images for each function
+# Build and push images for each function
 FUNCTIONS=(
     "register-device"
     "send-message"
     "test-ack"
     "test-status"
+    "init-schema"
 )
 
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
+# Save current directory
+ORIGINAL_DIR=$(pwd)
+
 for func_tag in "${FUNCTIONS[@]}"; do
-    echo -e "${BLUE}Creating placeholder image for $func_tag...${NC}"
-    
-    # Tag the base image
+    LAMBDA_DIR="$PROJECT_ROOT/backend/Lambda/$func_tag"
     ECR_IMAGE="$ECR_REPO_URL:$func_tag-$IMAGE_TAG"
-    docker tag public.ecr.aws/lambda/provided:al2023 "$ECR_IMAGE"
     
-    # Push to ECR
-    echo -e "  Pushing to $ECR_IMAGE..."
-    if ! docker push "$ECR_IMAGE"; then
-        echo -e "${RED}Failed to push $ECR_IMAGE${NC}"
-        exit 1
+    # Check if Lambda has a Dockerfile (actual code)
+    if [ -f "$LAMBDA_DIR/Dockerfile" ]; then
+        echo -e "${BLUE}Building actual image for $func_tag...${NC}"
+        echo -e "  Directory: $LAMBDA_DIR"
+        
+        # Build the Docker image
+        # For init-schema, we need to include the Schema directory in build context
+        # Lambda requires: Single-architecture image (linux/amd64) with Docker Manifest V2 Schema 2
+        # Use buildx with --load to create single-arch image compatible with Lambda
+        if [ "$func_tag" = "init-schema" ]; then
+            cd "$PROJECT_ROOT/backend"
+            # First, ensure we have amd64 base images
+            docker pull --platform linux/amd64 golang:1.23-alpine > /dev/null 2>&1 || true
+            docker pull --platform linux/amd64 public.ecr.aws/lambda/provided:al2023 > /dev/null 2>&1 || true
+            if ! docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false -f "Lambda/$func_tag/Dockerfile" -t "$ECR_IMAGE" .; then
+                echo -e "${RED}Failed to build $func_tag image${NC}"
+                cd "$ORIGINAL_DIR"
+                exit 1
+            fi
+        else
+            cd "$LAMBDA_DIR"
+            # Ensure base image is amd64
+            docker pull --platform linux/amd64 public.ecr.aws/lambda/provided:al2023 > /dev/null 2>&1 || true
+            if ! docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false -t "$ECR_IMAGE" .; then
+                echo -e "${RED}Failed to build $func_tag image${NC}"
+                cd "$ORIGINAL_DIR"
+                exit 1
+            fi
+        fi
+        
+        # Push to ECR
+        echo -e "  Pushing to $ECR_IMAGE..."
+        if ! docker push "$ECR_IMAGE"; then
+            echo -e "${RED}Failed to push $ECR_IMAGE${NC}"
+            cd "$ORIGINAL_DIR"
+            exit 1
+        fi
+        
+        # Cleanup local image
+        docker rmi "$ECR_IMAGE" 2>/dev/null || true
+        
+        # Return to original directory
+        cd "$ORIGINAL_DIR"
+        
+        echo -e "${GREEN}$func_tag actual image built and pushed!${NC}"
+        echo -e "   Image: $ECR_IMAGE\n"
+    else
+        # No Dockerfile found, use placeholder
+        echo -e "${YELLOW}No Dockerfile found for $func_tag, using placeholder...${NC}"
+        
+        # Create a minimal Dockerfile for placeholder to ensure single-arch manifest
+        PLACEHOLDER_DOCKERFILE=$(mktemp)
+        cat > "$PLACEHOLDER_DOCKERFILE" << 'EOF'
+FROM public.ecr.aws/lambda/provided:al2023
+# Minimal placeholder image
+EOF
+        
+        # Build placeholder image using buildx to ensure single-arch manifest
+        cd "$PROJECT_ROOT"
+        if ! docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false -f "$PLACEHOLDER_DOCKERFILE" -t "$ECR_IMAGE" .; then
+            echo -e "${RED}Failed to build $func_tag placeholder image${NC}"
+            rm -f "$PLACEHOLDER_DOCKERFILE"
+            cd "$ORIGINAL_DIR"
+            exit 1
+        fi
+        rm -f "$PLACEHOLDER_DOCKERFILE"
+        
+        # Push to ECR
+        echo -e "  Pushing placeholder to $ECR_IMAGE..."
+        if ! docker push "$ECR_IMAGE"; then
+            echo -e "${RED}Failed to push $ECR_IMAGE${NC}"
+            cd "$ORIGINAL_DIR"
+            exit 1
+        fi
+        
+        # Cleanup local tag
+        docker rmi "$ECR_IMAGE" 2>/dev/null || true
+        
+        echo -e "${GREEN}$func_tag placeholder image created and pushed!${NC}"
+        echo -e "   Image: $ECR_IMAGE\n"
     fi
-    
-    # Cleanup local tag
-    docker rmi "$ECR_IMAGE" 2>/dev/null || true
-    
-    echo -e "${GREEN}$func_tag placeholder image created and pushed!${NC}"
-    echo -e "   Image: $ECR_IMAGE\n"
 done
 
-echo -e "${GREEN}All placeholder images pushed successfully${NC}\n"
+echo -e "${GREEN}All images pushed successfully${NC}\n"
 
 # Step 4c: Deploy Lambda Functions (now that images exist in ECR)
 print_step "4c" "Deploying Lambda Functions"
@@ -232,8 +353,10 @@ cd "$PROJECT_ROOT/infra/Lambdas"
 
 echo -e "${BLUE}Creating Lambda functions (images now exist in ECR)...${NC}"
 # Now apply all resources, which will create the Lambda functions
-# Terraform will automatically load terraform.tfvars for rds_username and rds_password
-terraform apply -auto-approve "${TF_VARS[@]}"
+# Terraform variables (rds_username, rds_password) are set via TF_VAR_* environment variables
+terraform apply -auto-approve "${TF_VARS[@]}" \
+    -var="rds_username=$TF_VAR_rds_username" \
+    -var="rds_password=$TF_VAR_rds_password"
 
 # Get Lambda outputs
 REGISTER_DEVICE_ARN=$(terraform output -raw register_device_function_arn)
@@ -244,6 +367,7 @@ TEST_ACK_ARN=$(terraform output -raw test_ack_function_arn)
 TEST_ACK_NAME=$(terraform output -raw test_ack_function_name)
 TEST_STATUS_ARN=$(terraform output -raw test_status_function_arn)
 TEST_STATUS_NAME=$(terraform output -raw test_status_function_name)
+INIT_SCHEMA_NAME=$(terraform output -raw init_schema_function_name 2>/dev/null || echo "")
 
 echo -e "${GREEN}Lambda Functions deployed successfully!${NC}"
 echo -e "${GREEN}Lambda Outputs:${NC}"
@@ -251,7 +375,20 @@ echo -e "  Register Device ARN: $REGISTER_DEVICE_ARN"
 echo -e "  Send Message ARN: $SEND_MESSAGE_ARN"
 echo -e "  Test Ack ARN: $TEST_ACK_ARN"
 echo -e "  Test Status ARN: $TEST_STATUS_ARN"
+echo -e "  Init Schema Name: $INIT_SCHEMA_NAME"
 echo -e "  ECR Repository: $ECR_REPO_URL"
+
+# Step 4d: Update RDS to trigger init-schema Lambda (if Lambda name is available)
+if [ -n "$INIT_SCHEMA_NAME" ]; then
+    print_step "4d" "Updating RDS to trigger init-schema Lambda"
+    cd "$PROJECT_ROOT/infra/RDS"
+    terraform apply -auto-approve \
+        -var="vpc_id=$VPC_ID" \
+        -var="private_subnet_ids=$PRIVATE_SUBNET_IDS" \
+        -var="lambda_security_group_id=$LAMBDA_SG_ID" \
+        -var="init_schema_lambda_name=$INIT_SCHEMA_NAME"
+    echo -e "${GREEN}RDS updated to trigger init-schema Lambda${NC}"
+fi
 
 # Step 5: Deploy API Gateway
 print_step "5" "Deploying API Gateway"
@@ -278,11 +415,12 @@ echo -e "  API Base URL: ${GREEN}$API_BASE_URL${NC}"
 echo -e "  ECR Repository: ${GREEN}$ECR_REPO_URL${NC}"
 echo -e "  RDS Host: ${GREEN}$RDS_HOST${NC}"
 echo -e "\n${YELLOW}Next Steps:${NC}"
-echo -e "  1. Placeholder images have been pushed. Lambda functions are using them."
-echo -e "  2. (Optional) If you have backend code, build and push actual images to ECR"
+echo -e "  1. Lambda images have been built and pushed to ECR"
+echo -e "  2. Lambda functions are deployed and ready to use"
 echo -e "  3. Test API endpoints using the base URL above"
 echo -e "\n${BLUE}Note:${NC}"
-echo -e "  Lambda functions are currently using placeholder images."
-echo -e "  To deploy actual code, you'll need to build and push real images with the same names."
+echo -e "  - Lambda functions with Dockerfile were built with actual code"
+echo -e "  - Lambda functions without Dockerfile are using placeholder images"
+echo -e "  - To add code to placeholder Lambdas, create a Dockerfile in their directory"
 echo -e "\n"
 

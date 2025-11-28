@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	_ "github.com/lib/pq"
+	dbgen "github.com/fcm-tutorial/lambda/init-schema/sqlc"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -31,89 +30,51 @@ func handler(ctx context.Context) error {
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
 		rdsHost, rdsPort, rdsUsername, rdsPassword, rdsDBName)
 
-	// Connect to database
-	db, err := sql.Open("postgres", connStr)
+	// Connect to database using pgx/v5
+	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+	defer pool.Close()
 
 	// Test connection
-	if err := db.Ping(); err != nil {
+	if err := pool.Ping(ctx); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-
-	// Read SQL schema from file
-	sqlScriptPath := "/var/task/init.sql"
-	if _, err := os.Stat(sqlScriptPath); os.IsNotExist(err) {
-		// Fallback: try relative path (for local testing)
-		sqlScriptPath = "../../Schema/init.sql"
+	// Read and execute SQL schema from file
+	// Try multiple possible paths (Lambda container paths)
+	sqlScriptPaths := []string{
+		"/var/task/Schema/init.sql",
+		"/var/runtime/Schema/init.sql",
+		"./Schema/init.sql",
+		"../../Schema/init.sql",
 	}
 
-	sqlScriptBytes, err := os.ReadFile(sqlScriptPath)
+	var sqlScript string
+	var sqlScriptPath string
+	for _, path := range sqlScriptPaths {
+		if data, err := os.ReadFile(path); err == nil {
+			sqlScript = string(data)
+			sqlScriptPath = path
+			break
+		}
+	}
+
+	if sqlScript == "" {
+		return fmt.Errorf("failed to find init.sql in any of the expected paths: %v", sqlScriptPaths)
+	}
+
+	// Execute SQL script to create tables
+	// pgx can handle multiple statements
+	if _, err := pool.Exec(ctx, sqlScript); err != nil {
+		return fmt.Errorf("failed to execute SQL script from %s: %w", sqlScriptPath, err)
+	}
+
+	// Verify tables exist using sqlc
+	queries := dbgen.New(pool)
+	tableCount, err := queries.CountTables(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to read SQL script from %s: %w", sqlScriptPath, err)
-	}
-	sqlScript := string(sqlScriptBytes)
-
-	// Execute SQL statements in a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Split SQL script by semicolon and process each statement
-	statements := strings.Split(sqlScript, ";")
-	for _, stmt := range statements {
-		// Remove leading/trailing whitespace and newlines
-		stmt = strings.TrimSpace(stmt)
-
-		// Skip empty statements
-		if stmt == "" {
-			continue
-		}
-
-		// Remove comment lines (lines starting with --)
-		lines := strings.Split(stmt, "\n")
-		var cleanedLines []string
-		for _, line := range lines {
-			trimmedLine := strings.TrimSpace(line)
-			if trimmedLine != "" && !strings.HasPrefix(trimmedLine, "--") {
-				cleanedLines = append(cleanedLines, line)
-			}
-		}
-		stmt = strings.Join(cleanedLines, "\n")
-		stmt = strings.TrimSpace(stmt)
-
-		// Skip if statement is empty after removing comments
-		if stmt == "" {
-			continue
-		}
-
-		// Execute the statement
-		if _, err := tx.Exec(stmt); err != nil {
-			return fmt.Errorf("failed to execute SQL: %w\nStatement: %s", err, stmt)
-		}
-	}
-
-	// Commit the transaction
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	// Verify tables were created
-	var tableCount int
-	if err := db.QueryRow(`
-		SELECT COUNT(*) 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
-		AND table_name IN ('devices', 'test_runs')
-	`).Scan(&tableCount); err != nil {
 		return fmt.Errorf("failed to verify tables: %w", err)
 	}
 
