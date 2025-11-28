@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+
+	"github.com/aws/aws-lambda-go/events"
 )
 
 // Logger provides basic logging functionality
@@ -71,4 +73,58 @@ func (l *Logger) HandleError(ctx context.Context, err error, message string) *Er
 		Message:   message,
 		RequestID: requestID,
 	}
+}
+
+// ParseRequestBody parses JSON request body into the provided struct
+// Returns error response if parsing fails
+func (l *Logger) ParseRequestBody(ctx context.Context, body string, v interface{}) *ErrorResponse {
+	if err := json.Unmarshal([]byte(body), v); err != nil {
+		l.Error(ctx, err, "Failed to parse request body")
+		return l.HandleError(ctx, err, "Invalid request body")
+	}
+	return nil
+}
+
+// BadRequest returns a 400 Bad Request response
+func (l *Logger) BadRequest(ctx context.Context, err error, message string) (events.APIGatewayProxyResponse, error) {
+	errorResp := l.HandleError(ctx, err, message)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 400,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       errorResp.ToJSON(),
+	}, nil
+}
+
+// InternalServerError returns a 500 Internal Server Error response
+func (l *Logger) InternalServerError(ctx context.Context, err error, message string) (events.APIGatewayProxyResponse, error) {
+	errorResp := l.HandleError(ctx, err, message)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 500,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       errorResp.ToJSON(),
+	}, nil
+}
+
+// NotFound returns a 404 Not Found response
+func (l *Logger) NotFound(ctx context.Context, err error, message string) (events.APIGatewayProxyResponse, error) {
+	errorResp := l.HandleError(ctx, err, message)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 404,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       errorResp.ToJSON(),
+	}, nil
+}
+
+// Success returns a 200 OK response with JSON body
+func (l *Logger) Success(ctx context.Context, data interface{}) (events.APIGatewayProxyResponse, error) {
+	responseBody, err := json.Marshal(data)
+	if err != nil {
+		l.Error(ctx, err, "Failed to marshal response")
+		return l.InternalServerError(ctx, err, "Failed to create response")
+	}
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       string(responseBody),
+	}, nil
 }

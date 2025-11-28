@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -32,27 +31,15 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 
 	// Parse request body
 	var registerDeviceRequest RegisterDeviceRequest
-	if err := json.Unmarshal([]byte(request.Body), &registerDeviceRequest); err != nil {
-		logger.Error(ctx, err, "Failed to parse request body")
-		errorResp := logger.HandleError(ctx, err, "Invalid request body")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
+	if errorResp := logger.ParseRequestBody(ctx, request.Body, &registerDeviceRequest); errorResp != nil {
+		return logger.BadRequest(ctx, nil, "Invalid request body")
 	}
 
 	// Validate required fields
 	if registerDeviceRequest.UserId == "" || registerDeviceRequest.DeviceId == "" ||
 		registerDeviceRequest.FcmToken == "" || registerDeviceRequest.Platform == "" {
 		err := fmt.Errorf("missing required fields: user_id, device_id, fcm_token, platform")
-		logger.Error(ctx, err, "Validation failed")
-		errorResp := logger.HandleError(ctx, err, "Missing required fields")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
+		return logger.BadRequest(ctx, err, "Missing required fields")
 	}
 
 	// Validate platform must be "android" or "ios"
@@ -62,39 +49,24 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 	}
 	if !validPlatforms[registerDeviceRequest.Platform] {
 		err := fmt.Errorf("invalid platform: %s (must be 'android' or 'ios')", registerDeviceRequest.Platform)
-		logger.Error(ctx, err, "Validation failed")
-		errorResp := logger.HandleError(ctx, err, "Platform must be 'android' or 'ios'")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 400,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
+		return logger.BadRequest(ctx, err, "Platform must be 'android' or 'ios'")
 	}
 
 	// Get database connection
 	db, err := common.GetDBConnection()
 	if err != nil {
-		logger.Error(ctx, err, "Failed to connect to database")
-		errorResp := logger.HandleError(ctx, err, "Database connection failed")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
+		return logger.InternalServerError(ctx, err, "Database connection failed")
 	}
 	defer common.CloseDBConnection(db)
 
 	// Check if device_id already exists with a different user_id
 	// device_id should be globally unique (one device can only belong to one user)
-	// Using raw SQL query until sqlc generates GetDeviceByDeviceID method
-	var existingUserID string
-	checkQuery := "SELECT user_id FROM devices WHERE device_id = $1 LIMIT 1"
-	err = db.QueryRow(ctx, checkQuery, registerDeviceRequest.DeviceId).Scan(&existingUserID)
+	queries := sqlc.New(db)
+	existingDevice, err := queries.GetDeviceByDeviceID(ctx, registerDeviceRequest.DeviceId)
 	if err == nil {
 		// Device exists, check if it belongs to a different user
-		if existingUserID != registerDeviceRequest.UserId {
-			err := fmt.Errorf("device_id '%s' already registered to user '%s'", registerDeviceRequest.DeviceId, existingUserID)
-			logger.Error(ctx, err, "Device already belongs to another user")
+		if existingDevice.UserID != registerDeviceRequest.UserId {
+			err := fmt.Errorf("device_id '%s' already registered to user '%s'", registerDeviceRequest.DeviceId, existingDevice.UserID)
 			errorResp := logger.HandleError(ctx, err, "Device already registered to another user")
 			return events.APIGatewayProxyResponse{
 				StatusCode: 409, // Conflict
@@ -109,20 +81,13 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 		logger.Info(ctx, "Device not found, will insert new record")
 	} else {
 		// Other database error
-		logger.Error(ctx, err, "Failed to check existing device")
-		errorResp := logger.HandleError(ctx, err, "Database query failed")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
+		return logger.InternalServerError(ctx, err, "Database query failed")
 	}
 
 	// Upsert device record using sqlc
 	// Database has UNIQUE constraint on (user_id, device_id)
 	// - If (user_id, device_id) combination exists: update fcm_token, is_active = TRUE, updated_at = NOW()
 	// - If (user_id, device_id) combination does not exist: insert a new row
-	queries := sqlc.New(db)
 	err = queries.UpsertDevice(ctx, sqlc.UpsertDeviceParams{
 		UserID:   registerDeviceRequest.UserId,
 		DeviceID: registerDeviceRequest.DeviceId,
@@ -130,13 +95,7 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 		FcmToken: registerDeviceRequest.FcmToken,
 	})
 	if err != nil {
-		logger.Error(ctx, err, "Failed to upsert device record")
-		errorResp := logger.HandleError(ctx, err, "Database operation failed")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
+		return logger.InternalServerError(ctx, err, "Database operation failed")
 	}
 
 	logger.Info(ctx, "Device registered successfully: user_id=%s, device_id=%s",
@@ -149,20 +108,5 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 		RequestId: request.RequestContext.RequestID,
 	}
 
-	responseBody, err := json.Marshal(response)
-	if err != nil {
-		logger.Error(ctx, err, "Failed to marshal response")
-		errorResp := logger.HandleError(ctx, err, "Failed to create response")
-		return events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       errorResp.ToJSON(),
-		}, nil
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-		Body:       string(responseBody),
-	}, nil
+	return logger.Success(ctx, response)
 }

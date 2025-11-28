@@ -7,7 +7,137 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const ackTestRun = `-- name: AckTestRun :one
+UPDATE test_runs
+SET status = 'ACKED', acked_at = NOW()
+WHERE nonce = $1 AND status = 'PENDING'
+RETURNING nonce, user_id, status, created_at, acked_at
+`
+
+func (q *Queries) AckTestRun(ctx context.Context, nonce string) (TestRun, error) {
+	row := q.db.QueryRow(ctx, ackTestRun, nonce)
+	var i TestRun
+	err := row.Scan(
+		&i.Nonce,
+		&i.UserID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.AckedAt,
+	)
+	return i, err
+}
+
+const createTestRun = `-- name: CreateTestRun :exec
+INSERT INTO test_runs (nonce, user_id, status, created_at)
+VALUES ($1, $2, 'PENDING', NOW())
+ON CONFLICT (nonce) DO NOTHING
+`
+
+type CreateTestRunParams struct {
+	Nonce  string `json:"nonce"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) CreateTestRun(ctx context.Context, arg CreateTestRunParams) error {
+	_, err := q.db.Exec(ctx, createTestRun, arg.Nonce, arg.UserID)
+	return err
+}
+
+const getDeviceByDeviceID = `-- name: GetDeviceByDeviceID :one
+SELECT user_id, device_id, platform, fcm_token, is_active, updated_at
+FROM devices
+WHERE device_id = $1
+LIMIT 1
+`
+
+type GetDeviceByDeviceIDRow struct {
+	UserID    string             `json:"user_id"`
+	DeviceID  string             `json:"device_id"`
+	Platform  string             `json:"platform"`
+	FcmToken  string             `json:"fcm_token"`
+	IsActive  bool               `json:"is_active"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetDeviceByDeviceID(ctx context.Context, deviceID string) (GetDeviceByDeviceIDRow, error) {
+	row := q.db.QueryRow(ctx, getDeviceByDeviceID, deviceID)
+	var i GetDeviceByDeviceIDRow
+	err := row.Scan(
+		&i.UserID,
+		&i.DeviceID,
+		&i.Platform,
+		&i.FcmToken,
+		&i.IsActive,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getTestRunByNonce = `-- name: GetTestRunByNonce :one
+SELECT nonce, user_id, status, created_at, acked_at
+FROM test_runs
+WHERE nonce = $1
+LIMIT 1
+`
+
+func (q *Queries) GetTestRunByNonce(ctx context.Context, nonce string) (TestRun, error) {
+	row := q.db.QueryRow(ctx, getTestRunByNonce, nonce)
+	var i TestRun
+	err := row.Scan(
+		&i.Nonce,
+		&i.UserID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.AckedAt,
+	)
+	return i, err
+}
+
+const listActiveDevicesByPlatforms = `-- name: ListActiveDevicesByPlatforms :many
+SELECT user_id, device_id, platform, fcm_token, is_active, updated_at
+FROM devices
+WHERE user_id = $1 AND is_active = TRUE AND platform IN ('android', 'ios')
+`
+
+type ListActiveDevicesByPlatformsRow struct {
+	UserID    string             `json:"user_id"`
+	DeviceID  string             `json:"device_id"`
+	Platform  string             `json:"platform"`
+	FcmToken  string             `json:"fcm_token"`
+	IsActive  bool               `json:"is_active"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListActiveDevicesByPlatforms(ctx context.Context, userID string) ([]ListActiveDevicesByPlatformsRow, error) {
+	rows, err := q.db.Query(ctx, listActiveDevicesByPlatforms, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListActiveDevicesByPlatformsRow
+	for rows.Next() {
+		var i ListActiveDevicesByPlatformsRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.DeviceID,
+			&i.Platform,
+			&i.FcmToken,
+			&i.IsActive,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const upsertDevice = `-- name: UpsertDevice :exec
 INSERT INTO devices (user_id, device_id, platform, fcm_token, is_active, updated_at)

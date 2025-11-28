@@ -9,6 +9,11 @@ import (
 )
 
 type Querier interface {
+	AckTestRun(ctx context.Context, nonce string) (TestRun, error)
+	CreateTestRun(ctx context.Context, arg CreateTestRunParams) error
+	GetDeviceByDeviceID(ctx context.Context, deviceID string) (GetDeviceByDeviceIDRow, error)
+	GetTestRunByNonce(ctx context.Context, nonce string) (TestRun, error)
+	ListActiveDevicesByPlatforms(ctx context.Context, userID string) ([]ListActiveDevicesByPlatformsRow, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 }
 
