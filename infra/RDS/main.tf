@@ -80,8 +80,8 @@ resource "aws_db_instance" "main" {
   backup_window          = "03:00-04:00"
   maintenance_window     = "mon:04:00-mon:05:00"
 
-  skip_final_snapshot = true # Set to false for production
-  deletion_protection = false
+  skip_final_snapshot = false # Set to false for production
+  deletion_protection = true
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
