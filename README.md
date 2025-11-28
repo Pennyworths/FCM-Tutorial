@@ -5,18 +5,19 @@
 Build a minimal but realistic FCM push demo with:
 
 - Native Android app (Kotlin) + Firebase FCM
+- Native iOS app (Swift) + Firebase FCM
 - AWS backend (API Gateway + Lambda + RDS + Secrets Manager) managed by Terraform
 - End-to-end test running inside Docker
 
 ### Flow
 
 1. Deploy infra + backend.
-2. Install and open Android app (it auto-registers FCM and shows info).
+2. Install and open Android/iOS app (it auto-registers FCM and shows info).
 3. Copy values from the app into a .env file for the test.
 4. Run the e2e test in Docker:
    backend sends a push → app receives it → app calls back an API → test verifies success.
 
-> Android only. No iOS.
+> Supports both Android and iOS platforms.
 
 ---
 
@@ -27,6 +28,7 @@ repo-root/
   infra/      # Terraform: VPC, RDS, Lambdas, API Gateway, Secrets
   backend/    # Lambda source code
   android/    # Native Android app (Kotlin)
+  ios/        # Native iOS app (Swift)
   test/       # e2e test script + Dockerfile + .env.example
 ```
 
@@ -54,6 +56,7 @@ Create:
   - Can read FCM credentials from Secrets Manager.
 - Secrets Manager:
   - Store FCM service account JSON (or config needed to get an access token).
+  - Store APNs Authentication Key (for iOS push notifications).
 
 Terraform must output at least:
 
@@ -73,7 +76,7 @@ CREATE TABLE devices (
   id          SERIAL PRIMARY KEY,
   user_id     TEXT NOT NULL,
   device_id   TEXT NOT NULL,
-  platform    TEXT NOT NULL, -- 'android'
+  platform    TEXT NOT NULL, -- 'android' or 'ios'
   fcm_token   TEXT NOT NULL,
   is_active   BOOLEAN NOT NULL DEFAULT TRUE,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -121,7 +124,7 @@ Request:
 Rules:
 
 - Validate required fields.
-- platform must be "android".
+- platform must be "android" or "ios".
 - Upsert into devices by (user_id, device_id) as described above.
 
 Response:
@@ -151,8 +154,9 @@ Request:
 }
 ```
 
-- Query devices for all rows where user_id = ? and is_active = TRUE and platform = 'android'.
+- Query devices for all rows where user_id = ? and is_active = TRUE and platform IN ('android', 'ios').
 - Use FCM HTTP v1 API to send the notification to each fcm_token, using the credentials stored in Secrets Manager.
+- For iOS devices, FCM will automatically route through APNs using the APNs credentials configured in Firebase.
 - If data.type == "e2e_test" and data.nonce is present:
   - Insert a row into test_runs with:
   - nonce, user_id, status = 'PENDING'.
@@ -263,7 +267,53 @@ or
 
 ---
 
-## 7. e2e Test (Docker)
+## 7. iOS Native App (Swift)
+
+### 7.1 Tech
+
+- Native iOS app, Swift.
+- Example bundle identifier: com.example.fcmplayground.
+- Integrate Firebase:
+  - Add GoogleService-Info.plist under the app target.
+  - Add Firebase Messaging dependency via Swift Package Manager or CocoaPods.
+- APNs setup (required for iOS):
+  - Create APNs Authentication Key (.p8) in Apple Developer Portal → Keys, or use APNs Certificate (.p12).
+  - Upload to Firebase Console → Project Settings → Cloud Messaging → Apple app configuration.
+  - Enable "Push Notifications" capability in Xcode (Target → Signing & Capabilities).
+
+### 7.2 Behavior
+
+1. On first launch
+   - Initialize Firebase.
+   - Request notification permission using `UNUserNotificationCenter`.
+   - Generate a persistent device_id (UUID stored in UserDefaults).
+   - Use a fixed test user_id (e.g., "debug-user-1").
+2. Token handling
+   - Get FCM token on startup via `Messaging.messaging().token`.
+   - Display on screen:
+     - user_id
+     - device_id
+     - fcm_token
+     - API base URL (this can be configured in the app or via build config).
+   - Automatically call POST /devices/register when a token is obtained.
+   - Listen for token refresh and re-call /devices/register.
+3. UI
+   - A single ViewController is enough:
+     - Text fields showing user_id, device_id, fcm_token, API_BASE_URL.
+     - A "Re-register device" button that triggers /devices/register again.
+4. Receiving messages
+   - Implement `MessagingDelegate`:
+     - On message:
+       - Read userInfo data.
+       - If data.type == "e2e_test":
+         - Read data.nonce.
+         - Call POST /test/ack with that nonce.
+       - For other messages:
+         - Show a standard notification using title and body.
+
+---
+
+## 8. e2e Test (Docker)
 
 All tests run from inside Docker in the test/ directory.
 
@@ -324,7 +374,7 @@ Inside the container:
 
 ---
 
-## 8. Deliverables
+## 9. Deliverables
 
 The intern must provide:
 
@@ -338,12 +388,15 @@ The intern must provide:
 - android/
   - Kotlin source.
   - Short setup guide for Firebase + how to run the app.
+- ios/
+  - Swift source.
+  - Short setup guide for Firebase + APNs configuration + how to run the app.
 - test/
   - Dockerfile
   - Test script
   - .env.example
   - README.md describing the full test flow:
     1. Deploy infra + backend
-    2. Install and open the app
+    2. Install and open the app (Android or iOS)
     3. Copy app-shown info into .env
     4. Run the test in Docker and interpret the result
