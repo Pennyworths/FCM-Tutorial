@@ -53,3 +53,8 @@ output "ecr_repository_arn" {
   value       = aws_ecr_repository.lambda_images.arn
 }
 
+output "init_schema_function_name" {
+  description = "Name of initSchema Lambda function"
+  value       = aws_lambda_function.init_schema.function_name
+}
+

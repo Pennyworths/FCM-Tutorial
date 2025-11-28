@@ -47,13 +47,13 @@ variable "rds_db_name" {
 }
 
 variable "rds_username" {
-  description = "RDS username"
+  description = "RDS username. Can be set via TF_VAR_rds_username or RDS_USERNAME/DB_USERNAME environment variable"
   type        = string
   sensitive   = true
 }
 
 variable "rds_password" {
-  description = "RDS password"
+  description = "RDS password. Can be set via TF_VAR_rds_password or RDS_PASSWORD/DB_PASSWORD environment variable"
   type        = string
   sensitive   = true
 }

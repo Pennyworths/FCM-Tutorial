@@ -23,7 +23,15 @@ provider "aws" {
 
 # Determine the secret content - prefer file if provided, otherwise use variable
 locals {
-  secret_content = var.fcm_service_account_json_file != "" ? file(var.fcm_service_account_json_file) : (
+  # Handle file path: if relative, assume it's relative to project root (../../)
+  # If absolute, use as-is
+  file_path = var.fcm_service_account_json_file != "" ? (
+    startswith(var.fcm_service_account_json_file, "/") ? var.fcm_service_account_json_file : (
+      "${path.module}/../../${var.fcm_service_account_json_file}"
+    )
+  ) : ""
+  
+  secret_content = var.fcm_service_account_json_file != "" ? file(local.file_path) : (
     var.fcm_service_account_json != "" ? var.fcm_service_account_json : ""
   )
   

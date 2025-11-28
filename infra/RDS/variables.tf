@@ -38,12 +38,12 @@ variable "db_name" {
 }
 
 variable "db_username" {
-  description = "Database master username"
+  description = "Database master username. Can be set via TF_VAR_db_username or DB_USERNAME environment variable"
   type        = string
 }
 
 variable "db_password" {
-  description = "Database master password"
+  description = "Database master password. Can be set via TF_VAR_db_password or DB_PASSWORD environment variable"
   type        = string
   sensitive   = true
 }
@@ -52,5 +52,11 @@ variable "db_instance_class" {
   description = "RDS instance class"
   type        = string
   default     = "db.t3.micro"
+}
+
+variable "init_schema_lambda_name" {
+  description = "Name of initSchema Lambda function (optional, for automatic schema initialization)"
+  type        = string
+  default     = ""
 }
 
