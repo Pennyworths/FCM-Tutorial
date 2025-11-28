@@ -75,11 +75,6 @@ variable "lambda_memory_size" {
   default     = 256
 }
 
-variable "lambda_runtime" {
-  description = "Lambda runtime (not used for container images, kept for compatibility)"
-  type        = string
-  default     = "provided.al2023"
-}
 
 variable "image_tag" {
   description = "Docker image tag for Lambda container images (e.g., 'latest', 'v1.0.0')"
