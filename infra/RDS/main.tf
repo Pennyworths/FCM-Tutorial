@@ -62,7 +62,7 @@ resource "aws_security_group" "rds" {
 resource "aws_db_instance" "main" {
   identifier             = "${var.environment}-postgres"
   engine                 = "postgres"
-  engine_version         = "15"  # Use major version, AWS will select latest 15.x
+  engine_version         = "15.4"  # Pin to a specific minor version for controlled upgrades
   instance_class         = var.db_instance_class
   allocated_storage      = 20
   max_allocated_storage  = 100
