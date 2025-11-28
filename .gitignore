@@ -1,0 +1,13 @@
+# Terraform files
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+
+# Sensitive files
+service-account.json
+*.pem
+*.key
