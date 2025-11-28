@@ -27,3 +27,13 @@ output "lambda_security_group_id" {
   description = "Security group ID for Lambda functions"
   value       = aws_security_group.lambda.id
 }
+
+output "nat_gateway_id" {
+  description = "NAT Gateway ID"
+  value       = aws_nat_gateway.main.id
+}
+
+output "nat_gateway_public_ip" {
+  description = "NAT Gateway public IP (Elastic IP)"
+  value       = aws_eip.nat.public_ip
+}

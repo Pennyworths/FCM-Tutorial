@@ -35,3 +35,10 @@ variable "recovery_window_in_days" {
   default     = 30
 }
 
+variable "rds_password" {
+  description = "RDS database password (sensitive). Can be set via TF_VAR_rds_password or RDS_PASSWORD/DB_PASSWORD environment variable"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+

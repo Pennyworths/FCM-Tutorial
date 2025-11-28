@@ -60,3 +60,9 @@ variable "init_schema_lambda_name" {
   default     = ""
 }
 
+variable "init_schema_file_path" {
+  description = "Path to the database schema initialization SQL file. If empty, the module uses the default path ../../backend/Schema/init.sql relative to this module directory. Can be absolute or relative."
+  type        = string
+  default     = ""
+}
+

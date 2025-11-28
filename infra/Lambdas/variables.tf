@@ -52,14 +52,13 @@ variable "rds_username" {
   sensitive   = true
 }
 
-variable "rds_password" {
-  description = "RDS password. Can be set via TF_VAR_rds_password or RDS_PASSWORD/DB_PASSWORD environment variable"
-  type        = string
-  sensitive   = true
-}
-
 variable "secrets_manager_secret_arn" {
   description = "Secrets Manager secret ARN for FCM credentials"
+  type        = string
+}
+
+variable "rds_password_secret_arn" {
+  description = "Secrets Manager secret ARN for RDS password"
   type        = string
 }
 
@@ -75,11 +74,6 @@ variable "lambda_memory_size" {
   default     = 256
 }
 
-variable "lambda_runtime" {
-  description = "Lambda runtime (not used for container images, kept for compatibility)"
-  type        = string
-  default     = "provided.al2023"
-}
 
 variable "image_tag" {
   description = "Docker image tag for Lambda container images (e.g., 'latest', 'v1.0.0')"

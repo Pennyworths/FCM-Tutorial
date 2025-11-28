@@ -156,27 +156,40 @@ if [ -z "$TF_VAR_fcm_service_account_json" ] && [ -z "$TF_VAR_fcm_service_accoun
     exit 1
 fi
 
-terraform_apply "infra/Secrets" "Secrets Manager"
+# Deploy Secrets Manager with RDS password
+cd "$PROJECT_ROOT/infra/Secrets"
+terraform_apply "infra/Secrets" "Secrets Manager" \
+    -var="rds_password=$TF_VAR_rds_password"
 
-# Get Secrets output
+# Get Secrets outputs
 cd "$PROJECT_ROOT/infra/Secrets"
 SECRET_ARN=$(terraform output -raw secret_arn)
+RDS_PASSWORD_SECRET_ARN=$(terraform output -raw rds_password_secret_arn)
 
 echo -e "${GREEN}Secrets Output:${NC}"
-echo -e "  Secret ARN: $SECRET_ARN"
+echo -e "  FCM Secret ARN: $SECRET_ARN"
+echo -e "  RDS Password Secret ARN: $RDS_PASSWORD_SECRET_ARN"
 
 # Step 4: Deploy Lambdas (in phases to avoid image not found errors)
 print_step "4a" "Creating ECR Repository and IAM Roles for Lambda"
 cd "$PROJECT_ROOT/infra/Lambdas"
 
 # Check if required environment variables are set
-if [ -z "$TF_VAR_rds_username" ] || [ -z "$TF_VAR_rds_password" ]; then
-    echo -e "${RED}Error: RDS credentials not found!${NC}"
-    echo -e "${YELLOW}Please set the following environment variables:${NC}"
+if [ -z "$TF_VAR_rds_username" ]; then
+    echo -e "${RED}Error: RDS username not found!${NC}"
+    echo -e "${YELLOW}Please set the following environment variable:${NC}"
     echo -e "  export RDS_USERNAME=\"your_username\" (or DB_USERNAME)"
-    echo -e "  export RDS_PASSWORD=\"your_password\" (or DB_PASSWORD)"
     echo -e "${YELLOW}Or create a .env file in the project root with:${NC}"
     echo -e "  RDS_USERNAME=your_username"
+    exit 1
+fi
+
+# RDS password is now stored in Secrets Manager, but we still need it for RDS creation
+if [ -z "$TF_VAR_rds_password" ]; then
+    echo -e "${RED}Error: RDS password not found!${NC}"
+    echo -e "${YELLOW}Please set the following environment variable:${NC}"
+    echo -e "  export RDS_PASSWORD=\"your_password\" (or DB_PASSWORD)"
+    echo -e "${YELLOW}Or create a .env file in the project root with:${NC}"
     echo -e "  RDS_PASSWORD=your_password"
     exit 1
 fi
@@ -194,6 +207,7 @@ TF_VARS=(
     "-var=rds_port=$RDS_PORT"
     "-var=rds_db_name=$RDS_DB_NAME"
     "-var=secrets_manager_secret_arn=$SECRET_ARN"
+    "-var=rds_password_secret_arn=$RDS_PASSWORD_SECRET_ARN"
 )
 
 # Create ECR repository and IAM roles first (without Lambda functions)
@@ -353,10 +367,10 @@ cd "$PROJECT_ROOT/infra/Lambdas"
 
 echo -e "${BLUE}Creating Lambda functions (images now exist in ECR)...${NC}"
 # Now apply all resources, which will create the Lambda functions
-# Terraform variables (rds_username, rds_password) are set via TF_VAR_* environment variables
+# Terraform variables (rds_username) are set via TF_VAR_* environment variables
+# Note: rds_password is now stored in Secrets Manager, not passed directly to Lambda
 terraform apply -auto-approve "${TF_VARS[@]}" \
-    -var="rds_username=$TF_VAR_rds_username" \
-    -var="rds_password=$TF_VAR_rds_password"
+    -var="rds_username=$TF_VAR_rds_username"
 
 # Get Lambda outputs
 REGISTER_DEVICE_ARN=$(terraform output -raw register_device_function_arn)
