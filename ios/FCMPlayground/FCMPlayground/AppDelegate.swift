@@ -11,7 +11,7 @@ import FirebaseMessaging
 import UserNotifications
 
 
-class AppDelegate: NSObject, UIApplicationDelegate,UNUserNotificationCenterDelegate,MessagingDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     
     func application(
         _ application: UIApplication,
