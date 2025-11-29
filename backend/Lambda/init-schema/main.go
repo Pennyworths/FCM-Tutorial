@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	dbgen "github.com/fcm-tutorial/lambda/init-schema/sqlc"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -113,6 +114,58 @@ func handler(ctx context.Context) error {
 	if tableCount != 2 {
 		return fmt.Errorf("expected 2 tables in public schema, but found %d", tableCount)
 	}
+
+	// Query and print devices table
+	fmt.Println("==========================================")
+	fmt.Println("Querying devices table...")
+	fmt.Println("==========================================")
+
+	rows, err := pool.Query(ctx, "SELECT id, user_id, device_id, platform, fcm_token, is_active, updated_at FROM devices ORDER BY updated_at DESC")
+	if err != nil {
+		return fmt.Errorf("failed to query devices: %w", err)
+	}
+	defer rows.Close()
+
+	deviceCount := 0
+	fmt.Printf("%-5s | %-20s | %-20s | %-10s | %-30s | %-8s | %-20s\n", 
+		"ID", "User ID", "Device ID", "Platform", "FCM Token", "Active", "Updated At")
+	fmt.Println("----------------------------------------------------------------------------------------------------------------------------------")
+
+	for rows.Next() {
+		var id int32
+		var userID, deviceID, platform, fcmToken string
+		var isActive bool
+		var updatedAt pgtype.Timestamptz
+
+		err := rows.Scan(&id, &userID, &deviceID, &platform, &fcmToken, &isActive, &updatedAt)
+		if err != nil {
+			fmt.Printf("Error scanning row: %v\n", err)
+			continue
+		}
+
+		updatedAtStr := "N/A"
+		if updatedAt.Valid {
+			updatedAtStr = updatedAt.Time.Format("2006-01-02 15:04:05")
+		}
+
+		// Truncate long FCM token for display
+		fcmTokenDisplay := fcmToken
+		if len(fcmTokenDisplay) > 30 {
+			fcmTokenDisplay = fcmTokenDisplay[:27] + "..."
+		}
+
+		fmt.Printf("%-5d | %-20s | %-20s | %-10s | %-30s | %-8v | %-20s\n",
+			id, userID, deviceID, platform, fcmTokenDisplay, isActive, updatedAtStr)
+		deviceCount++
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	fmt.Println("----------------------------------------------------------------------------------------------------------------------------------")
+	fmt.Printf("Total devices: %d\n", deviceCount)
+	fmt.Println("==========================================")
 
 	return nil
 }

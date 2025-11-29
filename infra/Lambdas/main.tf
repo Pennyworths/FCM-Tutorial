@@ -179,8 +179,8 @@ resource "aws_lambda_function" "send_message" {
   timeout       = var.lambda_timeout
   memory_size   = var.lambda_memory_size
 
-  # Container image URI from ECR - image must exist in ECR first
-  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:send-message-${var.image_tag}"
+  # Container image URI from ECR
+  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:send-latest"
 
   vpc_config {
     subnet_ids         = var.private_subnet_ids
@@ -189,6 +189,7 @@ resource "aws_lambda_function" "send_message" {
 
   environment {
     variables = {
+      LAMBDA_HANDLER          = "SendMessageHandler"
       RDS_HOST                = var.rds_host
       RDS_PORT                = tostring(var.rds_port)
       RDS_DB_NAME             = var.rds_db_name

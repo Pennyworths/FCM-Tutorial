@@ -282,7 +282,7 @@ for func_tag in "${FUNCTIONS[@]}"; do
         echo -e "  Directory: $LAMBDA_DIR"
         
         # Build the Docker image
-        # For init-schema, we need to include the Schema directory in build context
+        # For init-schema and functions in API directory, we need to include the Schema directory in build context
         # Lambda requires: Single-architecture image (linux/amd64) with Docker Manifest V2 Schema 2
         # Use buildx with --load to create single-arch image compatible with Lambda
         if [ "$func_tag" = "init-schema" ]; then
@@ -291,6 +291,18 @@ for func_tag in "${FUNCTIONS[@]}"; do
             docker pull --platform linux/amd64 golang:1.23-alpine > /dev/null 2>&1 || true
             docker pull --platform linux/amd64 public.ecr.aws/lambda/provided:al2023 > /dev/null 2>&1 || true
             if ! docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false -f "Lambda/$func_tag/Dockerfile" -t "$ECR_IMAGE" .; then
+                echo -e "${RED}Failed to build $func_tag image${NC}"
+                cd "$ORIGINAL_DIR"
+                exit 1
+            fi
+        elif [ -f "$PROJECT_ROOT/backend/Lambda/API/Dockerfile" ]; then
+            # All API functions (register-device, send-message, test-ack, test-status) share the same Dockerfile
+            # Build from backend/ directory to access Schema/
+            cd "$PROJECT_ROOT/backend"
+            # First, ensure we have amd64 base images
+            docker pull --platform linux/amd64 golang:1.23-alpine > /dev/null 2>&1 || true
+            docker pull --platform linux/amd64 public.ecr.aws/lambda/provided:al2023 > /dev/null 2>&1 || true
+            if ! docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false -f "Lambda/API/Dockerfile" -t "$ECR_IMAGE" .; then
                 echo -e "${RED}Failed to build $func_tag image${NC}"
                 cd "$ORIGINAL_DIR"
                 exit 1
