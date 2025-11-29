@@ -119,6 +119,7 @@ func sendMessageToDevice(ctx context.Context, fcmToken string, title string, bod
 	if len(data) > 0 {
 		if err := json.Unmarshal(data, &dataMap); err != nil {
 			// If data is not a map, treat it as a single string value
+			fmt.Printf("WARNING: Invalid JSON for 'data' field: %v. Raw data: %s\n", err, string(data))
 			dataMap = map[string]string{"data": string(data)}
 		}
 	}

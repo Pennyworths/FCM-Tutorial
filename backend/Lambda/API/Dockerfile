@@ -7,18 +7,24 @@ RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 # Set working directory
 WORKDIR /build
 
-# Copy Schema directory first (needed for sqlc)
+# Copy Schema directory (build context should be backend/ to access Schema/)
+# This matches local dev structure: backend/Schema/init.sql
 COPY Schema/ ./Schema/
 
-# Copy go mod files
+# Copy Lambda/API to maintain directory structure matching local dev
+# This creates /build/Lambda/API/ structure
+COPY Lambda/API/ ./Lambda/API/
+
+# Set working directory to Lambda/API for sqlc and build
+WORKDIR /build/Lambda/API
+
+# Copy go mod files to current directory
 COPY Lambda/API/go.mod Lambda/API/go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY Lambda/API/ ./
-
-# Generate sqlc code (schema path is relative to sqlc.yaml location)
-# sqlc.yaml has schema: "../../Schema/init.sql" which becomes Schema/init.sql after copy
+# Generate sqlc code
+# sqlc.yaml is at /build/Lambda/API/sqlc.yaml
+# ../../Schema/init.sql resolves to /build/Schema/init.sql ✅
 RUN sqlc generate
 
 # Build the application
@@ -31,11 +37,11 @@ FROM public.ecr.aws/lambda/provided:al2023
 # Lambda provided runtime entrypoint script (/lambda-entrypoint.sh)
 # hardcodes RUNTIME_ENTRYPOINT=/var/runtime/bootstrap
 # So we need to place bootstrap at /var/runtime/bootstrap
-COPY --from=builder /build/bootstrap /var/runtime/bootstrap
+COPY --from=builder /build/Lambda/API/bootstrap /var/runtime/bootstrap
 RUN chmod 755 /var/runtime/bootstrap
 
 # Also copy to /var/task/bootstrap for compatibility
-COPY --from=builder /build/bootstrap /var/task/bootstrap
+COPY --from=builder /build/Lambda/API/bootstrap /var/task/bootstrap
 RUN chmod 755 /var/task/bootstrap
 
 # Set the CMD to your handler

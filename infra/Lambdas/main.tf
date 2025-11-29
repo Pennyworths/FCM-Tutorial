@@ -189,13 +189,13 @@ resource "aws_lambda_function" "send_message" {
 
   environment {
     variables = {
-      LAMBDA_HANDLER = "SendMessageHandler"
-      RDS_HOST       = var.rds_host
-      RDS_PORT       = tostring(var.rds_port)
-      RDS_DB_NAME    = var.rds_db_name
-      RDS_USERNAME   = var.rds_username
-      RDS_PASSWORD   = var.rds_password
-      SECRET_ARN     = var.secrets_manager_secret_arn
+      LAMBDA_HANDLER          = "SendMessageHandler"
+      RDS_HOST                = var.rds_host
+      RDS_PORT                = tostring(var.rds_port)
+      RDS_DB_NAME             = var.rds_db_name
+      RDS_USERNAME            = var.rds_username
+      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
+      SECRET_ARN              = var.secrets_manager_secret_arn
     }
   }
 
