@@ -36,3 +36,6 @@ response.json
 # Ignore individual deployment scripts
 deploy-register.sh
 deploy-send.sh
+
+# Android
+android/.idea/

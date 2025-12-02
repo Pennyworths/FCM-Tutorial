@@ -24,12 +24,14 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.*
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.layout.fillMaxWidth
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import com.google.firebase.messaging.FirebaseMessaging
-
-
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.material3.OutlinedTextField
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -65,9 +67,6 @@ class MainActivity : ComponentActivity() {
             Log.d("FCM", "Manual fetch token: $token")
             FcmTokenStore.saveToken(this, token)
         }
-
-
-
 
         setContent {
             FcmplaygroundTheme {
@@ -168,7 +167,13 @@ fun MainScreen(
     initialFcmToken: String,
     onReRegisterClick: (String) -> Unit,   //
 ) {
+
     var fcmToken by remember { mutableStateOf(initialFcmToken) }
+    var nonceInput by remember { mutableStateOf("") }
+    var statusText by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+
 
     Column(
         modifier = Modifier
@@ -195,6 +200,39 @@ fun MainScreen(
         ) {
             Text("Re-register device")
         }
+        Spacer(Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = nonceInput,
+            onValueChange = { nonceInput = it },
+            label = { Text("nonce for /test/status") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = {
+                if (nonceInput.isNotBlank()) {
+                    scope.launch {
+                        statusText = "Checking status..."
+                        statusText = checkTestStatus(apiBaseUrl, nonceInput)
+                    }
+                } else {
+                    statusText = "Please enter a nonce"
+                }
+            }
+        ) {
+            Text("Check test status")
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (statusText.isNotEmpty()) {
+            Text("Status: $statusText", style = MaterialTheme.typography.bodyMedium)
+        }
+
+
     }
 }
 
@@ -212,3 +250,35 @@ fun MainScreenPreview() {
         )
     }
 }
+
+suspend fun checkTestStatus(apiBaseUrl: String, nonce: String): String =
+    withContext(Dispatchers.IO) {
+        try {
+            val url = URL("$apiBaseUrl/test/status?nonce=$nonce")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+            }
+
+            val code = conn.responseCode
+            val responseText = try {
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } catch (_: Exception) {
+                ""
+            } finally {
+                conn.disconnect()
+            }
+
+            Log.d("API", "test/status HTTP $code, response=$responseText")
+
+            return@withContext when {
+                code in 200..299 && responseText.isNotBlank() -> responseText
+                code in 200..299 -> "OK"
+                else -> "HTTP $code"
+            }
+        } catch (e: Exception) {
+            Log.e("API", "test/status failed", e)
+            return@withContext "Error: ${e.message}"
+        }
+    }
