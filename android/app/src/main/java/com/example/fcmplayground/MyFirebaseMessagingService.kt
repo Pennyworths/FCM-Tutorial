@@ -20,6 +20,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     companion object {
         private const val TAG = "FCM"
         private const val CHANNEL_ID = "fcm_default_channel"
+        private const val CHANNEL_NAME = "FCM Messages"
+        private const val ACK_ENDPOINT = "/test/ack"
+        private const val CONNECT_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 10_000
     }
 
     override fun onNewToken(token: String) {
@@ -63,7 +67,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val apiBaseUrl = BuildConfig.API_BASE_URL
-                val url = URL("$apiBaseUrl/test/ack")
+                val url = URL("$apiBaseUrl$ACK_ENDPOINT")
 
                 val jsonBody = JSONObject().apply {
                     put("nonce", nonce)
@@ -73,8 +77,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 10_000
-                    readTimeout = 10_000
+                    connectTimeout = CONNECT_TIMEOUT_MS
+                    readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                 }
@@ -108,7 +112,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "FCM Messages",
+                CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             manager.createNotificationChannel(channel)
