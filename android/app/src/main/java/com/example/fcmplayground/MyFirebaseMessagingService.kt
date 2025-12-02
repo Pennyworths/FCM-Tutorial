@@ -89,8 +89,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 val code = conn.responseCode
                 val responseText = try {
-                    conn.inputStream.bufferedReader().use { it.readText() }
-                } catch (_: Exception) {
+                    if (code >= 400) {
+                        conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    } else {
+                        conn.inputStream.bufferedReader().use { it.readText() }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error reading response stream", e)
                     ""
                 }
                 conn.disconnect()
@@ -125,8 +130,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .build()
 
-        // Use incremental ID to avoid overwriting
-        val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        // Use positive ID to avoid overwriting and conflicts
+        val notificationId = (System.currentTimeMillis() and 0x7FFFFFFF).toInt()
         manager.notify(notificationId, notification)
     }
 }

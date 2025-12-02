@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
 
             val token = task.result
             Log.d("FCM", "Manual fetch token: $token")
+            FcmTokenStore.saveToken(this, token)
         }
 
 
