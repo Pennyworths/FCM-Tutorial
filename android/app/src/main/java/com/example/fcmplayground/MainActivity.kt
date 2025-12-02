@@ -52,7 +52,7 @@ fun MainScreen(
     deviceId: String,
     apiBaseUrl: String
 ) {
-    val (fcmToken, setFcmToken) =
+    val (fcmToken, _) =
         remember { mutableStateOf("FCM token will be shown here later") }
 
     Column(
