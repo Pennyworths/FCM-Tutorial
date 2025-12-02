@@ -24,10 +24,11 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.*
 import android.util.Log
 import android.widget.Toast
-import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import com.google.firebase.messaging.FirebaseMessaging
+
 
 
 
@@ -47,6 +48,22 @@ class MainActivity : ComponentActivity() {
         val apiBaseUrl = BuildConfig.API_BASE_URL
 
         val initialFcmToken = FcmTokenStore.getToken(this) ?: "FCM token not available yet"
+
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("FCM", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+            Log.d("FCM", "Manual fetch token: $token")
+        }
+
+
+
+
+
 
         setContent {
             FcmplaygroundTheme {
