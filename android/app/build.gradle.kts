@@ -30,8 +30,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-        // Read API_BASE_URL from local.properties
-        val apiBaseUrl = localProps.getProperty("API_BASE_URL", "")
+        // Read API_BASE_URL from local.properties (required, no hardcoded fallback)
+        val apiBaseUrl = localProps.getProperty("API_BASE_URL")
+        if (apiBaseUrl.isNullOrBlank()) {
+            throw GradleException("API_BASE_URL must be set in local.properties")
+        }
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 

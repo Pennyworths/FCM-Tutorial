@@ -165,7 +165,7 @@ fun MainScreen(
     deviceId: String,
     apiBaseUrl: String,
     initialFcmToken: String,
-    onReRegisterClick: (String) -> Unit,   //
+    onReRegisterClick: (String) -> Unit,
 ) {
 
     var fcmToken by remember { mutableStateOf(initialFcmToken) }
@@ -246,7 +246,7 @@ fun MainScreenPreview() {
             deviceId = "preview-device-id",
             apiBaseUrl = "https://example.com/dev",
             initialFcmToken = "preview-fcm-token",
-            onReRegisterClick = {}   //place holder
+            onReRegisterClick = {}
         )
     }
 }
