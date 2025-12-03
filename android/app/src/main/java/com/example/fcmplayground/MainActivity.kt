@@ -29,9 +29,19 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.*
 import java.net.HttpURLConnection
 import java.net.URL
-
+import com.google.firebase.messaging.FirebaseMessaging
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.material3.OutlinedTextField
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private const val CONNECTION_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 10_000
+        private const val REGISTER_PATH = "/devices/register"
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -56,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
             val token = task.result
             Log.d("FCM", "Manual fetch token: $token")
+            FcmTokenStore.saveToken(this, token)
         }
 
         if (!initialFcmToken.startsWith("FCM token not")
@@ -100,7 +111,7 @@ fun MainScreen(
     deviceId: String,
     apiBaseUrl: String,
     initialFcmToken: String,
-    onReRegisterClick: (String) -> Unit,   //
+    onReRegisterClick: (String) -> Unit,
 ) {
 
     var fcmToken by remember { mutableStateOf(initialFcmToken) }
@@ -181,7 +192,7 @@ fun MainScreenPreview() {
             deviceId = "preview-device-id",
             apiBaseUrl = "https://example.com/dev",
             initialFcmToken = "preview-fcm-token",
-            onReRegisterClick = {}   //place holder
+            onReRegisterClick = {}
         )
     }
 }
@@ -192,8 +203,8 @@ suspend fun checkTestStatus(apiBaseUrl: String, nonce: String): String =
             val url = URL("$apiBaseUrl/test/status?nonce=$nonce")
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 10_000
-                readTimeout = 10_000
+                connectTimeout = CONNECTION_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
             }
 
             val code = conn.responseCode
@@ -217,5 +228,3 @@ suspend fun checkTestStatus(apiBaseUrl: String, nonce: String): String =
             return@withContext "Error: ${e.message}"
         }
     }
-
-
