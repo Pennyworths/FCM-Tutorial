@@ -180,7 +180,7 @@ resource "aws_lambda_function" "send_message" {
   memory_size   = var.lambda_memory_size
 
   # Container image URI from ECR
-  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:send-latest"
+  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:send-message-${var.image_tag}"
 
   vpc_config {
     subnet_ids         = var.private_subnet_ids
@@ -214,6 +214,7 @@ resource "aws_lambda_function" "test_ack" {
   memory_size   = var.lambda_memory_size
 
   # Container image URI from ECR - image must exist in ECR first
+  # Uses the same Dockerfile as other API functions but with different tag
   image_uri = "${aws_ecr_repository.lambda_images.repository_url}:test-ack-${var.image_tag}"
 
   vpc_config {
@@ -223,6 +224,7 @@ resource "aws_lambda_function" "test_ack" {
 
   environment {
     variables = {
+      LAMBDA_HANDLER          = "TestAckHandler"
       RDS_HOST                = var.rds_host
       RDS_PORT                = tostring(var.rds_port)
       RDS_DB_NAME             = var.rds_db_name
@@ -247,6 +249,7 @@ resource "aws_lambda_function" "test_status" {
   memory_size   = var.lambda_memory_size
 
   # Container image URI from ECR - image must exist in ECR first
+  # Uses the same Dockerfile as other API functions but with different tag
   image_uri = "${aws_ecr_repository.lambda_images.repository_url}:test-status-${var.image_tag}"
 
   vpc_config {
@@ -256,6 +259,7 @@ resource "aws_lambda_function" "test_status" {
 
   environment {
     variables = {
+      LAMBDA_HANDLER          = "TestStatusHandler"
       RDS_HOST                = var.rds_host
       RDS_PORT                = tostring(var.rds_port)
       RDS_DB_NAME             = var.rds_db_name
