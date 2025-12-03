@@ -135,5 +135,3 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         manager.notify(notificationId, notification)
     }
 }
-
-

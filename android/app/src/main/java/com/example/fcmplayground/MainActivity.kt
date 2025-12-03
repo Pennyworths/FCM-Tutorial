@@ -31,9 +31,14 @@ import com.google.firebase.messaging.FirebaseMessaging
 
 
 
-
-
 class MainActivity : ComponentActivity() {
+    companion object {
+        private const val CONNECTION_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 10_000
+        private const val REGISTER_PATH = "/devices/register"
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -60,8 +65,6 @@ class MainActivity : ComponentActivity() {
             Log.d("FCM", "Manual fetch token: $token")
             FcmTokenStore.saveToken(this, token)
         }
-
-
 
 
 
@@ -110,13 +113,13 @@ class MainActivity : ComponentActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = URL("$apiBaseUrl/devices/register")
+                val url = URL("$apiBaseUrl$REGISTER_PATH")
                 Log.d("API", "POST $url body=${jsonBody}")
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 10_000
-                    readTimeout = 10_000
+                    connectTimeout = CONNECTION_TIMEOUT_MS
+                    readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                 }
@@ -209,4 +212,3 @@ fun MainScreenPreview() {
         )
     }
 }
-
