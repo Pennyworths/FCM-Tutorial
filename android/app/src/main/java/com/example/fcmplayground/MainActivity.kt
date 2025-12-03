@@ -24,7 +24,6 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.*
 import android.util.Log
 import android.widget.Toast
-import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -33,6 +32,13 @@ import java.net.URL
 
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private const val CONNECTION_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 10_000
+        private const val REGISTER_PATH = "/devices/register"
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -92,13 +98,13 @@ class MainActivity : ComponentActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = URL("$apiBaseUrl/devices/register")
+                val url = URL("$apiBaseUrl$REGISTER_PATH")
                 Log.d("API", "POST $url body=${jsonBody}")
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 10_000
-                    readTimeout = 10_000
+                    connectTimeout = CONNECTION_TIMEOUT_MS
+                    readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                 }
@@ -146,10 +152,12 @@ fun MainScreen(
     userId: String,
     deviceId: String,
     apiBaseUrl: String,
-    initialFcmToken: String,
+    initialFcmToken: String?,
     onReRegisterClick: (String) -> Unit,   //
 ) {
-    var fcmToken by remember { mutableStateOf(initialFcmToken) }
+    var fcmToken by remember {
+        mutableStateOf(initialFcmToken ?: "FCM token not ready yet")
+    }
 
     Column(
         modifier = Modifier
@@ -178,6 +186,7 @@ fun MainScreen(
         }
     }
 }
+
 
 
 @Preview(showBackground = true)
