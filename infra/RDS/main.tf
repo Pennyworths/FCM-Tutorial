@@ -62,7 +62,7 @@ resource "aws_security_group" "rds" {
 resource "aws_db_instance" "main" {
   identifier             = "${var.environment}-postgres"
   engine                 = "postgres"
-  engine_version         = "15.15"  # Latest PostgreSQL 15.x version supported by AWS RDS
+  engine_version         = "15.4"  # Pin to a specific minor version for controlled upgrades
   instance_class         = var.db_instance_class
   allocated_storage      = 20
   max_allocated_storage  = 100
@@ -98,8 +98,6 @@ locals {
 
 # Database Schema Initialization
 # Automatically invokes initSchema Lambda after RDS is created and available
-# Note: This requires the actual Lambda image (not placeholder) to be deployed.
-# If using placeholder images, this will fail. Deploy actual backend images first.
 resource "aws_lambda_invocation" "init_schema" {
   count = var.init_schema_lambda_name != "" ? 1 : 0
 

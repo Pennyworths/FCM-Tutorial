@@ -109,8 +109,28 @@ echo -e "${GREEN}Base images ready${NC}\n"
 # Save current directory
 ORIGINAL_DIR=$(pwd)
 
-# API functions (register-device, send-message, test-ack, test-status)
-# All share the same Dockerfile: backend/Lambda/API/Dockerfile
+# API functions - each will have its own image
+# Function to handler name mapping (using case statement for compatibility)
+get_handler_name() {
+    case "$1" in
+        "register-device")
+            echo "RegisterDeviceHandler"
+            ;;
+        "send-message")
+            echo "SendMessageHandler"
+            ;;
+        "test-ack")
+            echo "TestAckHandler"
+            ;;
+        "test-status")
+            echo "TestStatusHandler"
+            ;;
+        *)
+            echo "RegisterDeviceHandler"  # default
+            ;;
+    esac
+}
+
 API_FUNCTIONS=(
     "register-device"
     "send-message"
@@ -119,23 +139,27 @@ API_FUNCTIONS=(
 )
 
 echo -e "${BLUE}===========================================${NC}"
-echo -e "${BLUE}Building API Functions${NC}"
+echo -e "${BLUE}Building API Functions (4 separate images)${NC}"
 echo -e "${BLUE}===========================================${NC}\n"
 
 for func_tag in "${API_FUNCTIONS[@]}"; do
+    HANDLER_NAME=$(get_handler_name "$func_tag")
     ECR_IMAGE="$ECR_REPO_URL:$func_tag-$IMAGE_TAG"
     
-    echo -e "${BLUE}Building $func_tag...${NC}"
+    echo -e "${BLUE}Building $func_tag (handler: $HANDLER_NAME)...${NC}"
     echo -e "  Image: $ECR_IMAGE"
     
     # Build from backend/ directory to access Schema/
     cd "$BACKEND_DIR"
     
+    # Build with LAMBDA_HANDLER as build argument
+    # Each function will have its own image with the handler baked in
     if ! docker buildx build \
         --platform linux/amd64 \
         --load \
         --provenance=false \
         --sbom=false \
+        --build-arg LAMBDA_HANDLER="$HANDLER_NAME" \
         -f "Lambda/API/Dockerfile" \
         -t "$ECR_IMAGE" \
         .; then
@@ -156,7 +180,8 @@ for func_tag in "${API_FUNCTIONS[@]}"; do
     docker rmi "$ECR_IMAGE" 2>/dev/null || true
     
     echo -e "${GREEN}✓ $func_tag built and pushed successfully!${NC}"
-    echo -e "   Image: $ECR_IMAGE\n"
+    echo -e "   Image: $ECR_IMAGE"
+    echo -e "   Handler: $HANDLER_NAME\n"
 done
 
 # init-schema function (has its own Dockerfile)
@@ -207,9 +232,10 @@ echo -e "${GREEN}All Backend Images Built and Pushed!${NC}"
 echo -e "${GREEN}===========================================${NC}\n"
 
 echo -e "${BLUE}Summary:${NC}"
-echo -e "  API Functions (4):"
+echo -e "  API Functions (4 separate images):"
 for func_tag in "${API_FUNCTIONS[@]}"; do
-    echo -e "    • $func_tag: ${GREEN}$ECR_REPO_URL:$func_tag-$IMAGE_TAG${NC}"
+    HANDLER_NAME="${FUNCTION_HANDLERS[$func_tag]}"
+    echo -e "    • $func_tag ($HANDLER_NAME): ${GREEN}$ECR_REPO_URL:$func_tag-$IMAGE_TAG${NC}"
 done
 echo -e "  Init Schema:"
 echo -e "    • init-schema: ${GREEN}$ECR_REPO_URL:init-schema-$IMAGE_TAG${NC}"
