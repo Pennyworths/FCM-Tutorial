@@ -155,9 +155,6 @@ fun MainScreen(
     initialFcmToken: String?,
     onReRegisterClick: (String) -> Unit,   //
 ) {
-    var fcmToken by remember {
-        mutableStateOf(initialFcmToken ?: "FCM token not ready yet")
-    }
 
     Column(
         modifier = Modifier
