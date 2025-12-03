@@ -1,38 +1,34 @@
 package com.example.fcmplayground
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.fcmplayground.ui.theme.FcmplaygroundTheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.*
-import android.util.Log
-import android.widget.Toast
-import androidx.compose.foundation.layout.fillMaxWidth
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import com.google.firebase.messaging.FirebaseMessaging
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import androidx.compose.material3.OutlinedTextField
-
 
 
 class MainActivity : ComponentActivity() {
@@ -62,6 +58,18 @@ class MainActivity : ComponentActivity() {
             Log.d("FCM", "Manual fetch token: $token")
         }
 
+        if (!initialFcmToken.startsWith("FCM token not")
+        ) {
+            DeviceRegister.registerDevice(
+                context = this,
+                userId = userId,
+                deviceId = deviceId,
+                fcmToken = initialFcmToken,
+                apiBaseUrl = apiBaseUrl
+            )
+        }
+
+
 
         setContent {
             FcmplaygroundTheme {
@@ -71,7 +79,8 @@ class MainActivity : ComponentActivity() {
                     apiBaseUrl = apiBaseUrl,
                     initialFcmToken = initialFcmToken,
                     onReRegisterClick = { latestFcmToken ->
-                        registerDevice(
+                        DeviceRegister.registerDevice(
+                            context = this,
                             userId = userId,
                             deviceId = deviceId,
                             fcmToken = latestFcmToken,
@@ -79,75 +88,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 )
-            }
-        }
-    }
-
-    private fun registerDevice(
-        userId: String,
-        deviceId: String,
-        fcmToken: String,
-        apiBaseUrl: String
-    ) {
-        if (fcmToken.startsWith("FCM token not")) {
-            Toast.makeText(
-                /* context = */ this,
-                /* text = */ "FCM token not ready yet",
-                /* duration = */ Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-
-        val jsonBody = JSONObject().apply {
-            put("user_id", userId)
-            put("device_id", deviceId)
-            put("fcm_token", fcmToken)
-            put("platform", "android")
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val url = URL("$apiBaseUrl/devices/register")
-                Log.d("API", "POST $url body=${jsonBody}")
-
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 10_000
-                    readTimeout = 10_000
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json")
-                }
-
-                conn.outputStream.use { os ->
-                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
-                }
-
-                val code = conn.responseCode
-                val responseText = try {
-                    conn.inputStream.bufferedReader().use { it.readText() }
-                } catch (_: Exception) {
-                    ""
-                }
-                conn.disconnect()
-
-                Log.d("API", "registerDevice HTTP $code, response=$responseText")
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "registerDevice: HTTP $code",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } catch (e: Exception) {
-                Log.e("API", "registerDevice failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "register failed: ${e.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
             }
         }
     }

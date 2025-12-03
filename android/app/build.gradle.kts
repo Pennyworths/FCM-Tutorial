@@ -22,7 +22,7 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"https://j06dpl7osd.execute-api.us-east-1.amazonaws.com/dev\""
+            "\"https://wy9ecu3ipd.execute-api.us-east-1.amazonaws.com/dev\""
         )
     }
 
