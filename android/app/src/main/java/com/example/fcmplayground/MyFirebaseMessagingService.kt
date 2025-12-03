@@ -34,7 +34,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
         val notif = remoteMessage.notification
         Log.d(
-            "FCM",
+            TAG,
             "Message received: data=${remoteMessage.data}, " +
                     "title=${notif?.title}, body=${notif?.body}"
         )
