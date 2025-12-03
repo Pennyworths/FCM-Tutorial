@@ -9,10 +9,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object DeviceRegister {
-
-    private const val CONNECTION_TIMEOUT_MS = 10_000
-    private const val READ_TIMEOUT_MS = 10_000
-    private const val REGISTER_PATH = "/devices/register"
+    private const val TAG = "API"
+    private const val HTTP_METHOD_POST = "POST"
+    private const val HTTP_HEADER_CONTENT_TYPE = "Content-Type"
+    private const val HTTP_CONTENT_TYPE_JSON = "application/json"
+    private const val JSON_KEY_USER_ID = "user_id"
+    private const val JSON_KEY_DEVICE_ID = "device_id"
+    private const val JSON_KEY_FCM_TOKEN = "fcm_token"
+    private const val JSON_KEY_PLATFORM = "platform"
+    private const val PLATFORM_ANDROID = "android"
+    private const val TOAST_TOKEN_NOT_READY = "FCM token not ready yet"
 
     fun registerDevice(
         context: Context,
@@ -21,33 +27,33 @@ object DeviceRegister {
         fcmToken: String,
         apiBaseUrl: String
     ) {
-        if (fcmToken.startsWith("FCM token not")) {
+        if (fcmToken.startsWith(MainActivity.FCM_TOKEN_NOT_PREFIX)) {
             Toast.makeText(
                 context.applicationContext,
-                "FCM token not ready yet",
+                TOAST_TOKEN_NOT_READY,
                 Toast.LENGTH_SHORT
             ).show()
             return
         }
 
         val jsonBody = JSONObject().apply {
-            put("user_id", userId)
-            put("device_id", deviceId)
-            put("fcm_token", fcmToken)
-            put("platform", "android")
+            put(JSON_KEY_USER_ID, userId)
+            put(JSON_KEY_DEVICE_ID, deviceId)
+            put(JSON_KEY_FCM_TOKEN, fcmToken)
+            put(JSON_KEY_PLATFORM, PLATFORM_ANDROID)
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = URL("$apiBaseUrl$REGISTER_PATH")
-                Log.d("API", "POST $url body=$jsonBody")
+                val url = URL("$apiBaseUrl${ApiRoutes.DEVICES_REGISTER}")
+                Log.d(TAG, "$HTTP_METHOD_POST $url body=$jsonBody")
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = CONNECTION_TIMEOUT_MS
-                    readTimeout = READ_TIMEOUT_MS
+                    requestMethod = HTTP_METHOD_POST
+                    connectTimeout = MainActivity.CONNECTION_TIMEOUT_MS
+                    readTimeout = MainActivity.READ_TIMEOUT_MS
                     doOutput = true
-                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
                 }
 
                 conn.outputStream.use { os ->
@@ -62,7 +68,7 @@ object DeviceRegister {
                 }
                 conn.disconnect()
 
-                Log.d("API", "registerDevice HTTP $code, response=$responseText")
+                Log.d(TAG, "registerDevice HTTP $code, response=$responseText")
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
@@ -72,7 +78,7 @@ object DeviceRegister {
                     ).show()
                 }
             } catch (e: Exception) {
-                Log.e("API", "registerDevice failed: ${e.javaClass.name}: ${e.message}", e)
+                Log.e(TAG, "registerDevice failed: ${e.javaClass.name}: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         context.applicationContext,
