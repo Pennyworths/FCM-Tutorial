@@ -1,67 +1,82 @@
 package com.example.fcmplayground
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.fcmplayground.ui.theme.FcmplaygroundTheme
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.*
-import java.net.HttpURLConnection
-import java.net.URL
 
 class MainActivity : ComponentActivity() {
     companion object {
-        const val CONNECTION_TIMEOUT_MS = 10_000
-        const val READ_TIMEOUT_MS = 10_000
-        const val REGISTER_PATH = "/devices/register"
         const val TAG = "FCM"
         const val FCM_TOKEN_NOT_AVAILABLE = "FCM token not available yet"
         const val FCM_TOKEN_NOT_PREFIX = "FCM token not"
-        
-        // Debug/Test
         const val DEBUG_USER_ID = "debug-user-1"
         
-        // HTTP
-        const val HTTP_METHOD_GET = "GET"
-        const val HTTP_SUCCESS_CODE_MIN = 200
-        const val HTTP_SUCCESS_CODE_MAX = 299
-        const val HTTP_RESPONSE_OK = "OK"
-        
-        // Log tags
-        const val LOG_TAG_API = "API"
-        
-        // URL query parameters
-        const val QUERY_PARAM_NONCE = "nonce"
-        
-        // Status messages
-        const val STATUS_CHECKING = "Checking status..."
-        const val ERROR_NO_NONCE = "Please enter a nonce"
+        // Log messages
+        const val LOG_PERMISSION_GRANTED = "Notification permission granted"
+        const val LOG_PERMISSION_DENIED = "Notification permission denied"
+        const val LOG_PERMISSION_ALREADY_GRANTED = "Notification permission already granted"
+        const val LOG_TOKEN_FETCH_FAILED = "Fetching FCM registration token failed"
+        const val LOG_MANUAL_FETCH_TOKEN = "Manual fetch token: "
+    }
+
+    // Permission request launcher for Android 13+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Log.d(TAG, LOG_PERMISSION_GRANTED)
+        } else {
+            Log.w(TAG, LOG_PERMISSION_DENIED)
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    Log.d(TAG, LOG_PERMISSION_ALREADY_GRANTED)
+                }
+                else -> {
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
     }
    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Request notification permission for Android 13+
+        requestNotificationPermission()
 
         // fixed debug user id
         val userId = DEBUG_USER_ID
@@ -77,12 +92,12 @@ class MainActivity : ComponentActivity() {
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
-                Log.w(TAG, "Fetching FCM registration token failed", task.exception)
+                Log.w(TAG, LOG_TOKEN_FETCH_FAILED, task.exception)
                 return@addOnCompleteListener
             }
 
             val token = task.result
-            Log.d(TAG, "Manual fetch token: $token")
+            Log.d(TAG, "$LOG_MANUAL_FETCH_TOKEN$token")
             FcmTokenStore.saveToken(this, token)
         }
 
@@ -121,6 +136,25 @@ class MainActivity : ComponentActivity() {
 
 }
 
+private object MainScreenConstants {
+    // UI Strings
+    const val LABEL_USER_ID = "user_id: "
+    const val LABEL_DEVICE_ID = "device_id: "
+    const val LABEL_FCM_TOKEN = "FCM token: "
+    const val LABEL_API_BASE_URL = "API_BASE_URL: "
+    const val BUTTON_RE_REGISTER = "Re-register device"
+    
+    // Dimensions
+    val PADDING_SCREEN = 16.dp
+    val SPACING_SMALL = 8.dp
+    val SPACING_MEDIUM = 16.dp
+    
+    // Preview
+    const val PREVIEW_DEVICE_ID = "preview-device-id"
+    const val PREVIEW_API_BASE_URL = "https://example.com/dev"
+    const val PREVIEW_FCM_TOKEN = "preview-fcm-token"
+}
+
 @Composable
 fun MainScreen(
     userId: String,
@@ -129,72 +163,32 @@ fun MainScreen(
     initialFcmToken: String,
     onReRegisterClick: (String) -> Unit,
 ) {
-
     var fcmToken by remember { mutableStateOf(initialFcmToken) }
-    var nonceInput by remember { mutableStateOf("") }
-    var statusText by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-
-
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(MainScreenConstants.PADDING_SCREEN)
     ) {
-        Text("user_id: $userId", style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(8.dp))
+        Text("${MainScreenConstants.LABEL_USER_ID}$userId", style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(MainScreenConstants.SPACING_SMALL))
 
-        Text("device_id: $deviceId", style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(8.dp))
+        Text("${MainScreenConstants.LABEL_DEVICE_ID}$deviceId", style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(MainScreenConstants.SPACING_SMALL))
 
-        Text("FCM token: $fcmToken", style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(8.dp))
+        Text("${MainScreenConstants.LABEL_FCM_TOKEN}$fcmToken", style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(MainScreenConstants.SPACING_SMALL))
 
-        Text("API_BASE_URL: $apiBaseUrl", style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(16.dp))
+        Text("${MainScreenConstants.LABEL_API_BASE_URL}$apiBaseUrl", style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(MainScreenConstants.SPACING_MEDIUM))
 
         Button(
             onClick = {
-                // send fcmToken to Activity
                 onReRegisterClick(fcmToken)
             }
         ) {
-            Text("Re-register device")
+            Text(MainScreenConstants.BUTTON_RE_REGISTER)
         }
-        Spacer(Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = nonceInput,
-            onValueChange = { nonceInput = it },
-            label = { Text("nonce for /test/status") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Button(
-            onClick = {
-                if (nonceInput.isNotBlank()) {
-                    scope.launch {
-                        statusText = MainActivity.STATUS_CHECKING
-                        statusText = checkTestStatus(apiBaseUrl, nonceInput)
-                    }
-                } else {
-                    statusText = MainActivity.ERROR_NO_NONCE
-                }
-            }
-        ) {
-            Text("Check test status")
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        if (statusText.isNotEmpty()) {
-            Text("Status: $statusText", style = MaterialTheme.typography.bodyMedium)
-        }
-
-
     }
 }
 
@@ -205,42 +199,10 @@ fun MainScreenPreview() {
     FcmplaygroundTheme {
         MainScreen(
             userId = MainActivity.DEBUG_USER_ID,
-            deviceId = "preview-device-id",
-            apiBaseUrl = "https://example.com/dev",
-            initialFcmToken = "preview-fcm-token",
+            deviceId = MainScreenConstants.PREVIEW_DEVICE_ID,
+            apiBaseUrl = MainScreenConstants.PREVIEW_API_BASE_URL,
+            initialFcmToken = MainScreenConstants.PREVIEW_FCM_TOKEN,
             onReRegisterClick = {}
         )
     }
 }
-
-suspend fun checkTestStatus(apiBaseUrl: String, nonce: String): String =
-    withContext(Dispatchers.IO) {
-        try {
-            val url = URL("$apiBaseUrl${ApiRoutes.TEST_STATUS}?${MainActivity.QUERY_PARAM_NONCE}=$nonce")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = MainActivity.HTTP_METHOD_GET
-                connectTimeout = MainActivity.CONNECTION_TIMEOUT_MS
-                readTimeout = MainActivity.READ_TIMEOUT_MS
-            }
-
-            val code = conn.responseCode
-            val responseText = try {
-                conn.inputStream.bufferedReader().use { it.readText() }
-            } catch (_: Exception) {
-                ""
-            } finally {
-                conn.disconnect()
-            }
-
-            Log.d(MainActivity.LOG_TAG_API, "${ApiRoutes.TEST_STATUS} HTTP $code, response=$responseText")
-
-            return@withContext when {
-                code in MainActivity.HTTP_SUCCESS_CODE_MIN..MainActivity.HTTP_SUCCESS_CODE_MAX && responseText.isNotBlank() -> responseText
-                code in MainActivity.HTTP_SUCCESS_CODE_MIN..MainActivity.HTTP_SUCCESS_CODE_MAX -> MainActivity.HTTP_RESPONSE_OK
-                else -> "HTTP $code"
-            }
-        } catch (e: Exception) {
-            Log.e(MainActivity.LOG_TAG_API, "${ApiRoutes.TEST_STATUS} failed", e)
-            return@withContext "Error: ${e.message}"
-        }
-    }
