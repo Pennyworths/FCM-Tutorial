@@ -16,8 +16,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
-
-    companion object {
+      companion object {
         private const val TAG = "FCM"
         private const val CHANNEL_ID = "fcm_default_channel"
         private const val CHANNEL_NAME = "FCM Messages"
@@ -25,19 +24,30 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 10_000
     }
-
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "New token: $token")
 
         // Save token for later use in UI and /devices/register
         FcmTokenStore.saveToken(this, token)
+        val userId = "debug-user-1"
+        val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
+        val apiBaseUrl = BuildConfig.API_BASE_URL
+
+        //devices/register
+        DeviceRegister.registerDevice(
+            context = applicationContext,
+            userId = userId,
+            deviceId = deviceId,
+            fcmToken = token,
+            apiBaseUrl = apiBaseUrl
+        )
+
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        Log.d(TAG, "Message received: data=${remoteMessage.data}, notification=${remoteMessage.notification}")
 
         val data = remoteMessage.data
         val type = data["type"]
@@ -46,7 +56,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             // e2e test message: we expect a nonce in data.nonce
             val nonce = data["nonce"]
             if (!nonce.isNullOrBlank()) {
-                Log.d(TAG, "e2e_test message with nonce=$nonce, sending /test/ack")
+                Log.d(TAG, "e2e_test message with nonce=$nonce, sending ${ACK_ENDPOINT}")
                 ackTestMessage(nonce)
             } else {
                 Log.w(TAG, "e2e_test message missing nonce")
@@ -100,9 +110,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
                 conn.disconnect()
 
-                Log.d(TAG, "test/ack HTTP $code, response=$responseText")
+                Log.d(TAG, "$ACK_ENDPOINT HTTP $code, response=$responseText")
             } catch (e: Exception) {
-                Log.e(TAG, "test/ack failed", e)
+                Log.e(TAG, "$ACK_ENDPOINT failed", e)
             }
         }
     }
