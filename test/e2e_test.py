@@ -29,7 +29,7 @@ load_env_file()
 
 # Load environment variables
 API_BASE_URL = os.environ.get('API_BASE_URL', '').rstrip('/')
-TEST_USER_ID = os.environ.get('TEST_USER_ID', 'debug-user-2')
+TEST_USER_ID = os.environ.get('TEST_USER_ID', 'debug-user-1')
 TIMEOUT_SECONDS = int(os.environ.get('TIMEOUT_SECONDS', '30'))
 
 if not API_BASE_URL:
