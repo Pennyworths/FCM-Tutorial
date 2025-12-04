@@ -318,7 +318,7 @@ clean: ## Remove Terraform state files and .terraform directories (DANGEROUS!)
 
 config: ## Show current configuration
 	@echo "$(BLUE)Current Configuration:$(NC)"
-	@echo "  Project Root:     $(PROJECT_ROOT)"
+	@echo "  Project Root:      $(PROJECT_ROOT)"
 	@echo "  Infra Dir:         $(INFRA_DIR)"
 	@echo "  Scripts Dir:       $(SCRIPTS_DIR)"
 	@echo "  AWS Region:        $(AWS_REGION)"
