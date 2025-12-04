@@ -19,6 +19,8 @@ object DeviceRegister {
     private const val JSON_KEY_PLATFORM = "platform"
     private const val PLATFORM_ANDROID = "android"
     private const val TOAST_TOKEN_NOT_READY = "FCM token not ready yet"
+    private const val CONNECTION_TIMEOUT_MS = 10_000
+    private const val READ_TIMEOUT_MS = 10_000
 
     fun registerDevice(
         context: Context,
@@ -50,8 +52,8 @@ object DeviceRegister {
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = HTTP_METHOD_POST
-                    connectTimeout = MainActivity.CONNECTION_TIMEOUT_MS
-                    readTimeout = MainActivity.READ_TIMEOUT_MS
+                    connectTimeout = CONNECTION_TIMEOUT_MS
+                    readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
                 }
