@@ -33,6 +33,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o bootstrap .
 # Runtime stage
 FROM public.ecr.aws/lambda/provided:al2023
 
+# Accept LAMBDA_HANDLER as build argument
+# This allows each function to have its own image with default handler
+ARG LAMBDA_HANDLER="RegisterDeviceHandler"
+
 # Copy the binary from builder
 # Lambda provided runtime entrypoint script (/lambda-entrypoint.sh)
 # hardcodes RUNTIME_ENTRYPOINT=/var/runtime/bootstrap
@@ -43,6 +47,10 @@ RUN chmod 755 /var/runtime/bootstrap
 # Also copy to /var/task/bootstrap for compatibility
 COPY --from=builder /build/Lambda/API/bootstrap /var/task/bootstrap
 RUN chmod 755 /var/task/bootstrap
+
+# Set default LAMBDA_HANDLER environment variable
+# Each image will have its own default handler
+ENV LAMBDA_HANDLER=${LAMBDA_HANDLER}
 
 # Set the CMD to your handler
 # The entrypoint script expects the handler name as first argument
