@@ -21,11 +21,14 @@ import java.net.URL
 class MyFirebaseMessagingService : FirebaseMessagingService() {
     companion object {
         private const val TAG = "FCM"
-        private const val CHANNEL_ID = "fcm_default_channel"
-        private const val CHANNEL_NAME = "FCM Messages"
         private const val ACK_ENDPOINT = "/test/ack"
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 10_000
+        
+        // Notification
+        private const val CHANNEL_ID = "fcm_default_channel"
+        private const val CHANNEL_NAME = "FCM Messages"
+        private const val NOTIFICATION_ID_MASK = 0x7FFFFFFF
         
         // Data keys
         private const val DATA_KEY_TYPE = "type"
@@ -60,9 +63,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val LOG_READ_RESPONSE_ERROR = "Error reading response stream"
         private const val LOG_ACK_RESPONSE = "%s HTTP %d, response=%s"
         private const val LOG_ACK_FAILED = "%s failed"
-        
-        // Bit mask for notification ID
-        private const val NOTIFICATION_ID_MASK = 0x7FFFFFFF
     }
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -91,11 +91,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val title = remoteMessage.notification?.title ?: data[DATA_KEY_TITLE] ?: DEFAULT_TITLE
         val body = remoteMessage.notification?.body ?: data[DATA_KEY_BODY] ?: DEFAULT_BODY
 
-        // Always show Toast when message is received
-        showToast(String.format(TOAST_FORMAT, title, body))
-
         if (type == MSG_TYPE_E2E_TEST) {
-            // e2e test message: we expect a nonce in data.nonce
+            // e2e test message: show Toast and call ack
+            showToast(String.format(TOAST_FORMAT, title, body))
             val nonce = data[DATA_KEY_NONCE]
             if (!nonce.isNullOrBlank()) {
                 Log.d(TAG, String.format(LOG_E2E_MSG, nonce, ACK_ENDPOINT))
@@ -103,8 +101,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             } else {
                 Log.w(TAG, LOG_E2E_MISSING_NONCE)
             }
+        } else {
+            // Normal message: show system notification
+            showNotification(title, body)
         }
-        // All messages only show Toast, no system notification
     }
 
     /**
@@ -165,17 +165,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * Show a normal notification for non-e2e messages.
+     * Show a system notification for normal messages.
+     * Uses HIGH importance/priority to show heads-up notification (popup).
      */
     private fun showNotification(title: String, body: String) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create channel on Android O+
+        // Create channel on Android O+ with HIGH importance for heads-up
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH  // HIGH for heads-up popup
             )
             manager.createNotificationChannel(channel)
         }
@@ -184,6 +185,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)  // HIGH priority for heads-up
             .setAutoCancel(true)
             .build()
 
