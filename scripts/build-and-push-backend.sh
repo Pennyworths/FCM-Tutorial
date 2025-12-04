@@ -234,7 +234,7 @@ echo -e "${GREEN}===========================================${NC}\n"
 echo -e "${BLUE}Summary:${NC}"
 echo -e "  API Functions (4 separate images):"
 for func_tag in "${API_FUNCTIONS[@]}"; do
-    HANDLER_NAME="${FUNCTION_HANDLERS[$func_tag]}"
+    HANDLER_NAME=$(get_handler_name "$func_tag")
     echo -e "    • $func_tag ($HANDLER_NAME): ${GREEN}$ECR_REPO_URL:$func_tag-$IMAGE_TAG${NC}"
 done
 echo -e "  Init Schema:"
