@@ -1,14 +1,13 @@
-FROM alpine:3.20
+FROM python:3.11-alpine
 
 WORKDIR /app
 
-# install curl and jq (jq is used to parse JSON, can be without, but it's recommended to have it)
-RUN apk add --no-cache curl jq
+# Copy test script
+COPY e2e_test.py /app/e2e_test.py
 
-# copy script
-COPY e2e_test.sh /app/e2e_test.sh
+# Make script executable
+RUN chmod +x /app/e2e_test.py
 
-RUN chmod +x /app/e2e_test.sh
-
-ENTRYPOINT ["/app/e2e_test.sh"]
+# Set entrypoint
+ENTRYPOINT ["python3", "/app/e2e_test.py"]
 
