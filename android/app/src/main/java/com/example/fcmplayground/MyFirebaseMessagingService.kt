@@ -16,18 +16,33 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
-
-    companion object {
+      companion object {
         private const val TAG = "FCM"
         private const val CHANNEL_ID = "fcm_default_channel"
+        private const val CHANNEL_NAME = "FCM Messages"
+        private const val ACK_ENDPOINT = "/test/ack"
+        private const val CONNECT_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 10_000
     }
-
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "New token: $token")
 
         // Save token for later use in UI and /devices/register
         FcmTokenStore.saveToken(this, token)
+        val userId = "debug-user-1"
+        val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
+        val apiBaseUrl = BuildConfig.API_BASE_URL
+
+        //devices/register
+        DeviceRegister.registerDevice(
+            context = applicationContext,
+            userId = userId,
+            deviceId = deviceId,
+            fcmToken = token,
+            apiBaseUrl = apiBaseUrl
+        )
+
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -46,7 +61,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             // e2e test message: we expect a nonce in data.nonce
             val nonce = data["nonce"]
             if (!nonce.isNullOrBlank()) {
-                Log.d(TAG, "e2e_test message with nonce=$nonce, sending /test/ack")
+                Log.d(TAG, "e2e_test message with nonce=$nonce, sending ${ACK_ENDPOINT}")
                 ackTestMessage(nonce)
             } else {
                 Log.w(TAG, "e2e_test message missing nonce")
@@ -67,7 +82,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val apiBaseUrl = BuildConfig.API_BASE_URL
-                val url = URL("$apiBaseUrl/test/ack")
+                val url = URL("$apiBaseUrl$ACK_ENDPOINT")
 
                 val jsonBody = JSONObject().apply {
                     put("nonce", nonce)
@@ -77,8 +92,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 10_000
-                    readTimeout = 10_000
+                    connectTimeout = CONNECT_TIMEOUT_MS
+                    readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                 }
@@ -89,15 +104,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 val code = conn.responseCode
                 val responseText = try {
-                    conn.inputStream.bufferedReader().use { it.readText() }
-                } catch (_: Exception) {
+                    if (code >= 400) {
+                        conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    } else {
+                        conn.inputStream.bufferedReader().use { it.readText() }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error reading response stream", e)
                     ""
                 }
                 conn.disconnect()
 
-                Log.d(TAG, "test/ack HTTP $code, response=$responseText")
+                Log.d(TAG, "$ACK_ENDPOINT HTTP $code, response=$responseText")
             } catch (e: Exception) {
-                Log.e(TAG, "test/ack failed", e)
+                Log.e(TAG, "$ACK_ENDPOINT failed", e)
             }
         }
     }
@@ -112,7 +132,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "FCM Messages",
+                CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             manager.createNotificationChannel(channel)
@@ -125,10 +145,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .build()
 
-        // Use incremental ID to avoid overwriting
-        val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        // Use positive ID to avoid overwriting and conflicts
+        val notificationId = (System.currentTimeMillis() and 0x7FFFFFFF).toInt()
         manager.notify(notificationId, notification)
     }
 }
-
-
