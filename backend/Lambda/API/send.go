@@ -61,12 +61,40 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		return logger.InternalServerError(ctx, err, "Database query failed")
 	}
 
-	// Send message to each device
+	// If no devices found, return early
+	if len(devices) == 0 {
+		logger.Info(ctx, "No active devices found for user_id=%s", sendMessageRequest.UserID)
+		response := SendMessageResponse{
+			OK:        false,
+			SentCount: 0,
+		}
+		return logger.Success(ctx, response)
+	}
+
+	// Send message to each device, continue even if some fail
+	var successCount int
 	for _, device := range devices {
 		err = sendMessageToDevice(ctx, device.FcmToken, sendMessageRequest.Title, sendMessageRequest.Body, sendMessageRequest.Data)
 		if err != nil {
-			return logger.InternalServerError(ctx, err, "Failed to send message to device")
+			// Check if this is an UNREGISTERED error (token expired/invalid)
+			if isUnregisteredError(err) {
+				logger.Info(ctx, "Device token is unregistered, marking device as inactive: device_id=%s", device.DeviceID)
+				// Mark device as inactive in database
+				if deactivateErr := queries.DeactivateDevice(ctx, device.DeviceID); deactivateErr != nil {
+					logger.Error(ctx, deactivateErr, "Failed to deactivate device: device_id=%s", device.DeviceID)
+				} else {
+					logger.Info(ctx, "Device marked as inactive: device_id=%s", device.DeviceID)
+				}
+			} else {
+				// Other errors (network, FCM service issues, etc.) - log but don't mark as inactive
+				logger.Error(ctx, err, "Failed to send message to device: device_id=%s", device.DeviceID)
+			}
+			// Continue to next device instead of returning error
+			continue
 		}
+		// Success
+		successCount++
+		logger.Info(ctx, "Message sent successfully to device: device_id=%s", device.DeviceID)
 	}
 
 	// If data.type == "e2e_test" and data.nonce is present, insert into test_runs
@@ -91,11 +119,13 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		}
 	}
 
-	// Prepare success response
+	// Prepare response based on actual results
 	response := SendMessageResponse{
-		OK:        true,
-		SentCount: len(devices),
+		OK:        successCount > 0, // At least one device received the message
+		SentCount: successCount,     // Actual number of successful sends
 	}
+
+	logger.Info(ctx, "Send message completed: total_devices=%d, success_count=%d, ok=%v", len(devices), successCount, response.OK)
 
 	return logger.Success(ctx, response)
 }
@@ -256,4 +286,42 @@ func generateAccessToken(ctx context.Context, creds *common.FCMCredentials) (str
 	}
 
 	return tokenResponse.AccessToken, nil
+}
+
+// isUnregisteredError checks if the error indicates an UNREGISTERED FCM token
+// FCM returns UNREGISTERED error when:
+// - Token is expired (270+ days inactive)
+// - App was uninstalled
+// - Token is invalid
+func isUnregisteredError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+	// FCM API returns errors in format: "FCM API returned error: status=404, body={...}"
+	// The body contains JSON with error details including "errorCode": "UNREGISTERED"
+	
+	// Check for UNREGISTERED in error message
+	if strings.Contains(errStr, "UNREGISTERED") {
+		return true
+	}
+
+	// Also check for 404 status code (FCM returns 404 for UNREGISTERED)
+	if strings.Contains(errStr, "status=404") {
+		// Try to parse the error body to confirm it's UNREGISTERED
+		// Error format: "FCM API returned error: status=404, body={...}"
+		if strings.Contains(errStr, "body=") {
+			// Extract JSON body and check for UNREGISTERED
+			bodyStart := strings.Index(errStr, "body=")
+			if bodyStart != -1 {
+				bodyPart := errStr[bodyStart+5:] // Skip "body="
+				if strings.Contains(bodyPart, "UNREGISTERED") {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }

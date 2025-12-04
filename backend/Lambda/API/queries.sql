@@ -35,3 +35,8 @@ SELECT nonce, user_id, status, created_at, acked_at
 FROM test_runs
 WHERE nonce = $1
 LIMIT 1;
+
+-- name: DeactivateDevice :exec
+UPDATE devices
+SET is_active = FALSE, updated_at = NOW()
+WHERE device_id = $1;

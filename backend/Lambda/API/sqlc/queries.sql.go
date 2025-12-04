@@ -47,6 +47,17 @@ func (q *Queries) CreateTestRun(ctx context.Context, arg CreateTestRunParams) er
 	return err
 }
 
+const deactivateDevice = `-- name: DeactivateDevice :exec
+UPDATE devices
+SET is_active = FALSE, updated_at = NOW()
+WHERE device_id = $1
+`
+
+func (q *Queries) DeactivateDevice(ctx context.Context, deviceID string) error {
+	_, err := q.db.Exec(ctx, deactivateDevice, deviceID)
+	return err
+}
+
 const getDeviceByDeviceID = `-- name: GetDeviceByDeviceID :one
 SELECT user_id, device_id, platform, fcm_token, is_active, updated_at
 FROM devices
