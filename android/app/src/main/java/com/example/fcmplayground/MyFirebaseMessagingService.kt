@@ -85,6 +85,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
+        val notif = remoteMessage.notification
+        Log.d(
+            TAG,
+            "Message received: data=${remoteMessage.data}, " +
+                    "title=${notif?.title}, body=${notif?.body}"
+        )
 
         val data = remoteMessage.data
         val type = data[DATA_KEY_TYPE]
