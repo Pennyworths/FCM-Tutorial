@@ -21,7 +21,7 @@ import java.net.URL
 class MyFirebaseMessagingService : FirebaseMessagingService() {
     companion object {
         private const val TAG = "FCM"
-        private const val ACK_ENDPOINT = "/test/ack"
+        private val ACK_ENDPOINT = ApiRoutes.TEST_ACK
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 10_000
         
@@ -64,6 +64,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val LOG_ACK_RESPONSE = "%s HTTP %d, response=%s"
         private const val LOG_ACK_FAILED = "%s failed"
     }
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "$LOG_NEW_TOKEN$token")

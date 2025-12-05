@@ -75,6 +75,12 @@ push: ## Build and push all images to ECR
 deploy: push ## Build and push all images to ECR (alias for push)
 	@echo "$(GREEN)✓ Deployment complete!$(NC)"
 
+init-schema: ## Initialize database schema (REQUIRED after first deployment)
+	@echo "$(BLUE)Initializing database schema...$(NC)"
+	@aws lambda invoke --function-name dev-initSchema --payload '{}' /dev/stdout
+	@echo ""
+	@echo "$(GREEN)✓ Schema initialization complete$(NC)"
+
 # Individual function builds (for testing)
 build-api: ## Build only API functions (register-device, send-message, test-ack, test-status)
 	@echo "$(BLUE)Building API functions...$(NC)"

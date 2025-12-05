@@ -1,9 +1,10 @@
-.PHONY: help deploy deploy-vpc deploy-rds deploy-secrets deploy-lambdas deploy-api-gateway \
+.PHONY: help deploy-all deploy-vpc deploy-rds deploy-secrets deploy-lambdas deploy-api-gateway \
         destroy destroy-vpc destroy-rds destroy-secrets destroy-lambdas destroy-api-gateway \
         plan plan-vpc plan-rds plan-secrets plan-lambdas plan-api-gateway \
         init init-vpc init-rds init-secrets init-lambdas init-api-gateway \
         output output-vpc output-rds output-secrets output-lambdas output-api-gateway \
-        validate format clean get-ecr-url
+        validate format clean get-ecr-url \
+        start aws
 
 # Configuration
 PROJECT_ROOT := $(shell cd .. && pwd)
@@ -40,41 +41,38 @@ help: ## Show this help message
 	@echo "  AUTO_APPROVE    = $(AUTO_APPROVE)"
 	@echo ""
 	@echo "$(GREEN)Examples:$(NC)"
-	@echo "  make deploy                    # Deploy all infrastructure"
-	@echo "  make deploy IMAGE_TAG=v1.0.0  # Deploy with specific image tag"
+	@echo "  make start                     # Configure AWS credentials"
+	@echo "  make aws sts get-caller-identity  # Verify AWS credentials"
+	@echo "  make deploy-all                # Deploy all infrastructure"
+	@echo "  make deploy-all IMAGE_TAG=v1.0.0  # Deploy with specific image tag"
 	@echo "  make deploy-vpc               # Deploy only VPC"
 	@echo "  make plan                     # Plan all changes"
 	@echo "  make destroy                  # Destroy all infrastructure"
 	@echo "  make output                   # Show all outputs"
-	@echo "  make deploy AUTO_APPROVE=false  # Deploy with confirmation"
+	@echo "  make deploy-all AUTO_APPROVE=false  # Deploy with confirmation"
+
+# ============================================================================
+# AWS CLI Setup
+# ============================================================================
+
+start: ## Configure AWS credentials
+	@aws configure
+
+aws: ## Run AWS CLI commands (e.g., make aws sts get-caller-identity)
+	@aws $(filter-out $@,$(MAKECMDGOALS))
+
+%:
+	@:
 
 # ============================================================================
 # Full Deployment
 # ============================================================================
 
-deploy: ## Deploy all infrastructure using deploy-infra.sh script
+deploy-all: ## Deploy all infrastructure using deploy-infra.sh script
 	@echo "$(BLUE)Deploying all infrastructure...$(NC)"
 	@$(SCRIPTS_DIR)/deploy-infra.sh \
 		--tag $(IMAGE_TAG) \
 		$(if $(filter false,$(AUTO_APPROVE)),--no-auto-approve,)
-
-deploy-quick: ## Quick deploy: auto-approve all operations
-	@AUTO_APPROVE=true $(MAKE) deploy
-
-deploy-full: ## Deploy infrastructure, then build and push backend images, then deploy Lambdas
-	@echo "$(BLUE)===========================================${NC}"
-	@echo "$(BLUE)Full Deployment: Infrastructure + Backend$(NC)"
-	@echo "$(BLUE)===========================================${NC}\n"
-	@echo "$(BLUE)Using image tag: $(IMAGE_TAG)$(NC)\n"
-	@echo "$(BLUE)Step 1: Deploying infrastructure (skipping Lambdas)...$(NC)"
-	@$(SCRIPTS_DIR)/deploy-infra.sh --skip-lambdas --tag $(IMAGE_TAG) $(if $(filter false,$(AUTO_APPROVE)),--no-auto-approve,)
-	@echo "\n$(BLUE)Step 2: Building and pushing backend images with tag $(IMAGE_TAG)...$(NC)"
-	@cd $(PROJECT_ROOT)/backend && $(MAKE) deploy IMAGE_TAG=$(IMAGE_TAG)
-	@echo "\n$(BLUE)Step 3: Deploying Lambda functions (images now exist)...$(NC)"
-	@$(MAKE) deploy-lambdas IMAGE_TAG=$(IMAGE_TAG)
-	@echo "\n$(GREEN)===========================================${NC}"
-	@echo "$(GREEN)Full Deployment Complete!$(NC)"
-	@echo "$(GREEN)===========================================${NC}\n"
 
 # ============================================================================
 # Individual Module Deployment
