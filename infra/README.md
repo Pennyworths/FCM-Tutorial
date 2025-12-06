@@ -22,8 +22,8 @@ This directory contains Terraform configurations for deploying the FCM Tutorial 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `aws_region` | `us-east-1` | AWS region |
-| `project_name` | `fcm-tutorial` | Project name prefix |
-| `environment` | `dev` | Environment (dev/staging/prod) |
+| `project_name` | `cognito-fcm` | Project name prefix |
+| `environment` | `cognito-fcm` | Environment name |
 | `image_tag` | `latest` | Docker image tag for Lambda functions |
 
 ## Setup

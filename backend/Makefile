@@ -77,7 +77,9 @@ deploy: push ## Build and push all images to ECR (alias for push)
 
 init-schema: ## Initialize database schema (REQUIRED after first deployment)
 	@echo "$(BLUE)Initializing database schema...$(NC)"
-	@aws lambda invoke --function-name dev-initSchema --payload '{}' /dev/stdout
+	@LAMBDA_NAME=$$(cd $(INFRA_LAMBDAS_DIR) && terraform output -raw init_schema_function_name 2>/dev/null) || \
+		(echo "$(RED)Error: Could not get init-schema Lambda name. Make sure Lambda module is deployed.$(NC)" && exit 1); \
+	aws lambda invoke --function-name $$LAMBDA_NAME --payload '{}' /dev/stdout --profile $(AWS_PROFILE) --region $(AWS_REGION)
 	@echo ""
 	@echo "$(GREEN)✓ Schema initialization complete$(NC)"
 

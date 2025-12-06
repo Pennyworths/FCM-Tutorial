@@ -11,13 +11,9 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (use 'cognito-test' for independent test environment)"
   type        = string
-  default     = "cognito-fcm"
+  default     = "cognito-test"
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block for VPC"
-  type        = string
-  default     = "10.1.0.0/16"
-}
+

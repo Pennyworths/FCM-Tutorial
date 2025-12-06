@@ -50,9 +50,9 @@ func TestAckHandler(ctx context.Context, request events.APIGatewayProxyRequest) 
 	_, err = queries.AckTestRun(ctx, ackRequest.Nonce)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// nonce not found or already ACKED → 404
-			err := fmt.Errorf("test run not found or already acknowledged: nonce=%s", ackRequest.Nonce)
-			return logger.NotFound(ctx, err, "Test run not found or already acknowledged")
+			// nonce already ACKED → 409 Conflict
+			err := fmt.Errorf("test run already acknowledged: nonce=%s", ackRequest.Nonce)
+			return logger.BadRequest(ctx, err, "Test run already acknowledged")
 		}
 		// Other database errors → 500
 		return logger.InternalServerError(ctx, err, "Database operation failed")

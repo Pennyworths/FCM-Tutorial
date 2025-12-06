@@ -115,6 +115,26 @@ func (l *Logger) NotFound(ctx context.Context, err error, message string) (event
 	}, nil
 }
 
+// Unauthorized returns a 401 Unauthorized response
+func (l *Logger) Unauthorized(ctx context.Context, err error, message string) (events.APIGatewayProxyResponse, error) {
+	errorResp := l.HandleError(ctx, err, message)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 401,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       errorResp.ToJSON(),
+	}, nil
+}
+
+// Forbidden returns a 403 Forbidden response
+func (l *Logger) Forbidden(ctx context.Context, err error, message string) (events.APIGatewayProxyResponse, error) {
+	errorResp := l.HandleError(ctx, err, message)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 403,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       errorResp.ToJSON(),
+	}, nil
+}
+
 // Success returns a 200 OK response with JSON body
 func (l *Logger) Success(ctx context.Context, data interface{}) (events.APIGatewayProxyResponse, error) {
 	responseBody, err := json.Marshal(data)

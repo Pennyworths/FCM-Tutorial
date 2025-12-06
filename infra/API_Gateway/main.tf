@@ -46,7 +46,8 @@ resource "aws_api_gateway_method" "devices_register_post" {
   rest_api_id   = aws_api_gateway_rest_api.fcm_api.id
   resource_id   = aws_api_gateway_resource.devices_register.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = var.cognito_user_pool_arn != "" ? "COGNITO_USER_POOLS" : "NONE"
+  authorizer_id = var.cognito_user_pool_arn != "" ? aws_api_gateway_authorizer.cognito_authorizer[0].id : null
 }
 
 # Lambda integration for POST /devices/register
@@ -88,7 +89,8 @@ resource "aws_api_gateway_method" "messages_send_post" {
   rest_api_id   = aws_api_gateway_rest_api.fcm_api.id
   resource_id   = aws_api_gateway_resource.messages_send.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "NONE"  # Cognito authentication removed
+  authorizer_id = null
 }
 
 # Lambda integration for POST /messages/send
@@ -138,7 +140,8 @@ resource "aws_api_gateway_method" "test_ack_post" {
   rest_api_id   = aws_api_gateway_rest_api.fcm_api.id
   resource_id   = aws_api_gateway_resource.test_ack.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "NONE"  # Cognito authentication removed
+  authorizer_id = null
 }
 
 # Lambda integration for POST /test/ack
@@ -166,7 +169,8 @@ resource "aws_api_gateway_method" "test_status_get" {
   rest_api_id   = aws_api_gateway_rest_api.fcm_api.id
   resource_id   = aws_api_gateway_resource.test_status.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "NONE"  # Cognito authentication removed
+  authorizer_id = null
 }
 
 # Lambda integration for GET /test/status
@@ -202,6 +206,7 @@ resource "aws_api_gateway_deployment" "fcm_deployment" {
       aws_api_gateway_integration.messages_send_integration.id,
       aws_api_gateway_integration.test_ack_integration.id,
       aws_api_gateway_integration.test_status_integration.id,
+      var.cognito_user_pool_arn != "" ? aws_api_gateway_authorizer.cognito_authorizer[0].id : null,
     ]))
   }
 
@@ -216,4 +221,14 @@ resource "aws_api_gateway_stage" "fcm_stage" {
   stage_name    = var.environment  
 
   description = "Stage for ${var.environment}"
+}
+
+# Cognito Authorizer for API Gateway (only created if cognito_user_pool_arn is provided)
+resource "aws_api_gateway_authorizer" "cognito_authorizer" {
+  count           = var.cognito_user_pool_arn != "" ? 1 : 0
+  name            = "${var.project_name}-${var.environment}-cognito-authorizer"
+  rest_api_id     = aws_api_gateway_rest_api.fcm_api.id
+  type            = "COGNITO_USER_POOLS"
+  provider_arns   = [var.cognito_user_pool_arn]
+  identity_source = "method.request.header.Authorization"
 }

@@ -27,16 +27,30 @@ func RegisterDeviceHandler(ctx context.Context, request events.APIGatewayProxyRe
 	logger := common.NewLogger()
 	logger.Info(ctx, "Received device registration request")
 
+	// Extract Cognito user information
+	cognitoUser, err := common.GetCognitoUserInfo(ctx, request)
+	if err != nil {
+		return logger.Unauthorized(ctx, err, "Authentication required: Cognito user information not found")
+	}
+
 	// Parse request body
 	var registerDeviceRequest RegisterDeviceRequest
 	if errorResp := logger.ParseRequestBody(ctx, request.Body, &registerDeviceRequest); errorResp != nil {
 		return logger.BadRequest(ctx, nil, "Invalid request body")
 	}
 
+	// Use Cognito user ID instead of request body user_id (for security)
+	// If request body has user_id, validate it matches Cognito user ID
+	if registerDeviceRequest.UserId != "" && registerDeviceRequest.UserId != cognitoUser.UserID {
+		err := fmt.Errorf("user_id mismatch: cannot register device for another user")
+		return logger.Forbidden(ctx, err, "Unauthorized: user_id does not match authenticated user")
+	}
+	registerDeviceRequest.UserId = cognitoUser.UserID
+
 	// Validate required fields
-	if registerDeviceRequest.UserId == "" || registerDeviceRequest.DeviceId == "" ||
+	if registerDeviceRequest.DeviceId == "" ||
 		registerDeviceRequest.FcmToken == "" || registerDeviceRequest.Platform == "" {
-		err := fmt.Errorf("missing required fields: user_id, device_id, fcm_token, platform")
+		err := fmt.Errorf("missing required fields: device_id, fcm_token, platform")
 		return logger.BadRequest(ctx, err, "Missing required fields")
 	}
 

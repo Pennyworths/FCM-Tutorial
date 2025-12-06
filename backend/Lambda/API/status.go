@@ -55,6 +55,8 @@ func TestStatusHandler(ctx context.Context, request events.APIGatewayProxyReques
 		return logger.InternalServerError(ctx, err, "Database query failed")
 	}
 
+	// Note: User verification removed (Cognito authentication disabled)
+
 	// Build response
 	response := StatusResponse{
 		Nonce:  testRun.Nonce,

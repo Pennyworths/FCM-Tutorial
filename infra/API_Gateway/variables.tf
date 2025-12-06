@@ -7,11 +7,11 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "FCM"
+  default     = "cognito-fcm"
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (used as API Gateway stage name)"
   type        = string
   default     = "dev"
 }
@@ -54,4 +54,10 @@ variable "test_status_lambda_arn" {
 variable "test_status_lambda_name" {
   description = "Name of testStatusHandler Lambda function (for Permission)"
   type        = string
+}
+
+variable "cognito_user_pool_arn" {
+  description = "ARN of Cognito User Pool (for API Gateway Authorizer). Leave empty to disable Cognito authentication."
+  type        = string
+  default     = "" # Make it optional
 }

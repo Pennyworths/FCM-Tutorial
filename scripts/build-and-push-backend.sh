@@ -39,7 +39,7 @@ usage() {
     echo "  AWS_PROFILE            AWS profile"
     echo ""
     echo "Example:"
-    echo "  $0 --repo-url 793438971099.dkr.ecr.us-east-1.amazonaws.com/dev-lambda-images --tag v1.0.0"
+    echo "  $0 --repo-url 793438971099.dkr.ecr.us-east-1.amazonaws.com/cognito-fcm-lambda-images --tag v1.0.0"
     exit 1
 }
 

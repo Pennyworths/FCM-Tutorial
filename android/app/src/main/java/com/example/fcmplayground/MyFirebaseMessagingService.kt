@@ -50,6 +50,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val HTTP_METHOD_POST = "POST"
         private const val HTTP_HEADER_CONTENT_TYPE = "Content-Type"
         private const val HTTP_CONTENT_TYPE_JSON = "application/json"
+        private const val HTTP_HEADER_AUTHORIZATION = "Authorization"
         private const val HTTP_ERROR_CODE_THRESHOLD = 400
         
         // JSON keys
@@ -71,17 +72,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Save token for later use in UI and /devices/register
         FcmTokenStore.saveToken(this, token)
-        val userId = MainActivity.DEBUG_USER_ID
-        val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
-        val apiBaseUrl = BuildConfig.API_BASE_URL
+        
+        // Auto-register device if user is logged in
+        if (CognitoAuth.isLoggedIn(applicationContext)) {
+            val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
+            val apiBaseUrl = BuildConfig.API_BASE_URL
 
-        DeviceRegister.registerDevice(
-            context = applicationContext,
-            userId = userId,
-            deviceId = deviceId,
-            fcmToken = token,
-            apiBaseUrl = apiBaseUrl
-        )
+            DeviceRegister.registerDevice(
+                context = applicationContext,
+                deviceId = deviceId,
+                fcmToken = token,
+                apiBaseUrl = apiBaseUrl
+            )
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -133,6 +136,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val apiBaseUrl = BuildConfig.API_BASE_URL
                 val url = URL("$apiBaseUrl$ACK_ENDPOINT")
 
+                // Get ID token from Cognito
+                val idToken = CognitoAuth.getIdToken(applicationContext)
+                if (idToken == null) {
+                    Log.w(TAG, "Cannot ack test message: user not logged in")
+                    return@launch
+                }
+
                 val jsonBody = JSONObject().apply {
                     put(JSON_KEY_NONCE, nonce)
                 }
@@ -145,6 +155,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
+                    setRequestProperty(HTTP_HEADER_AUTHORIZATION, "Bearer $idToken")
                 }
 
                 conn.outputStream.use { os ->

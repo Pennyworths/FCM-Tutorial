@@ -1,0 +1,18 @@
+## This file must *NOT* be checked into Version Control Systems,
+# as it contains information specific to your local configuration.
+#
+# Location of the SDK. This is only used by Gradle.
+# For customization when using a Version Control System, please read the
+# header note.
+sdk.dir=C\:\\Users\\<username>\\AppData\\Local\\Android\\Sdk
+
+# API Gateway Base URL (get from infra/API_Gateway terraform output)
+API_BASE_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
+
+# AWS Cognito Configuration (get from infra/Cognito terraform output)
+# These are optional - only needed if using Cognito authentication
+COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxx
+COGNITO_REGION=us-east-1
+COGNITO_DOMAIN=your-domain-xxxxx
+

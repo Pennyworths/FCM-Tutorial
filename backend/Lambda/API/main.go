@@ -17,6 +17,8 @@ func main() {
 		lambda.Start(TestAckHandler)
 	case "TestStatusHandler", "status":
 		lambda.Start(TestStatusHandler)
+	case "ListUsersHandler", "list_users":
+		lambda.Start(ListUsersHandler)
 	case "RegisterDeviceHandler", "register", "":
 		lambda.Start(RegisterDeviceHandler)
 	default:

@@ -41,9 +41,15 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		return logger.BadRequest(ctx, nil, "Invalid request body")
 	}
 
+	// Validate user_id is provided (Cognito authentication removed)
+	if sendMessageRequest.UserID == "" {
+		err := fmt.Errorf("missing required field: user_id")
+		return logger.BadRequest(ctx, err, "Missing required field: user_id")
+	}
+
 	// Validate required fields
-	if sendMessageRequest.UserID == "" || sendMessageRequest.Title == "" || sendMessageRequest.Body == "" {
-		err := fmt.Errorf("missing required fields: user_id, title, body")
+	if sendMessageRequest.Title == "" || sendMessageRequest.Body == "" {
+		err := fmt.Errorf("missing required fields: title, body")
 		return logger.BadRequest(ctx, err, "Missing required fields")
 	}
 

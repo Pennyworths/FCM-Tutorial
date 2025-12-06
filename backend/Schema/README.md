@@ -46,7 +46,9 @@ The schema is automatically initialized when RDS is deployed using a Lambda func
 **Verification:**
 After deployment, check CloudWatch Logs for the `initSchema` Lambda function:
 ```bash
-aws logs tail /aws/lambda/dev-initSchema --follow
+# Get Lambda name from Terraform output
+LAMBDA_NAME=$(cd infra/Lambdas && terraform output -raw init_schema_function_name)
+aws logs tail /aws/lambda/$$LAMBDA_NAME --follow
 ```
 
 You should see:
@@ -183,12 +185,14 @@ SELECT COUNT(*) FROM test_runs;
 
 1. Check Lambda function exists:
    ```bash
-   aws lambda get-function --function-name dev-initSchema
+   # Get Lambda name from Terraform output
+   LAMBDA_NAME=$(cd infra/Lambdas && terraform output -raw init_schema_function_name)
+   aws lambda get-function --function-name $$LAMBDA_NAME
    ```
 
 2. Check CloudWatch Logs for errors:
    ```bash
-   aws logs tail /aws/lambda/dev-initSchema --follow
+   aws logs tail /aws/lambda/$$LAMBDA_NAME --follow
    ```
 
 3. Verify Lambda has VPC configuration and can reach RDS

@@ -36,6 +36,17 @@ android {
             throw GradleException("API_BASE_URL must be set in local.properties")
         }
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        
+        // Read Cognito configuration from local.properties (optional for Cognito integration)
+        val cognitoUserPoolId = localProps.getProperty("COGNITO_USER_POOL_ID", "")
+        val cognitoClientId = localProps.getProperty("COGNITO_CLIENT_ID", "")
+        val cognitoRegion = localProps.getProperty("COGNITO_REGION", "us-east-1")
+        val cognitoDomain = localProps.getProperty("COGNITO_DOMAIN", "")
+        
+        buildConfigField("String", "COGNITO_USER_POOL_ID", if (cognitoUserPoolId.isNotBlank()) "\"$cognitoUserPoolId\"" else "\"\"")
+        buildConfigField("String", "COGNITO_CLIENT_ID", if (cognitoClientId.isNotBlank()) "\"$cognitoClientId\"" else "\"\"")
+        buildConfigField("String", "COGNITO_REGION", "\"$cognitoRegion\"")
+        buildConfigField("String", "COGNITO_DOMAIN", if (cognitoDomain.isNotBlank()) "\"$cognitoDomain\"" else "\"\"")
     }
 
     buildTypes {

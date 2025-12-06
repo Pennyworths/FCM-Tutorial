@@ -1,6 +1,9 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
+# Set GOTOOLCHAIN to auto to allow Go to download newer toolchain if needed
+ENV GOTOOLCHAIN=auto
+
 # Install sqlc
 RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 

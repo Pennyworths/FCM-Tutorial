@@ -35,3 +35,8 @@ SELECT nonce, user_id, status, created_at, acked_at
 FROM test_runs
 WHERE nonce = $1
 LIMIT 1;
+
+-- name: ListAllUsers :many
+SELECT DISTINCT user_id
+FROM devices
+ORDER BY user_id;

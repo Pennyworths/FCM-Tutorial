@@ -1,0 +1,20 @@
+# Terraform variables for API Gateway
+# Copy this file to terraform.tfvars and fill in the values
+# Or get values from Lambdas module outputs:
+#   cd ../Lambdas && terraform output
+
+register_device_lambda_arn = "arn:aws:lambda:us-east-1:123456789012:function:your-function-name"
+register_device_lambda_name = "your-function-name"
+
+send_message_lambda_arn = "arn:aws:lambda:us-east-1:123456789012:function:your-function-name"
+send_message_lambda_name = "your-function-name"
+
+test_ack_lambda_arn = "arn:aws:lambda:us-east-1:123456789012:function:your-function-name"
+test_ack_lambda_name = "your-function-name"
+
+test_status_lambda_arn = "arn:aws:lambda:us-east-1:123456789012:function:your-function-name"
+test_status_lambda_name = "your-function-name"
+
+# Optional: Cognito User Pool ARN (leave empty if not using Cognito)
+cognito_user_pool_arn = ""
+

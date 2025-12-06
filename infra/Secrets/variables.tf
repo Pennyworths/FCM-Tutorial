@@ -7,13 +7,13 @@ variable "aws_region" {
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "FCM"
+  default     = "cognito-fcm"
 }
 
 variable "environment" {
   description = "Environment name"
   type        = string
-  default     = "dev"
+  default     = "cognito-fcm"
 }
 
 variable "fcm_service_account_json" {

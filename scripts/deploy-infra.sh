@@ -465,7 +465,8 @@ if [ "$SKIP_API_GATEWAY" = false ] && [ "$SKIP_LAMBDAS" = false ]; then
             -var="test_ack_lambda_arn=$TEST_ACK_ARN" \
             -var="test_ack_lambda_name=$TEST_ACK_NAME" \
             -var="test_status_lambda_arn=$TEST_STATUS_ARN" \
-            -var="test_status_lambda_name=$TEST_STATUS_NAME"
+            -var="test_status_lambda_name=$TEST_STATUS_NAME" \
+            -var="cognito_user_pool_arn="
         
         # Get API Gateway output
         cd "$PROJECT_ROOT/infra/API_Gateway"

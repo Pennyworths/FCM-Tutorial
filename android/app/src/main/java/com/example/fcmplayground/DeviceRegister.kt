@@ -13,18 +13,18 @@ object DeviceRegister {
     private const val HTTP_METHOD_POST = "POST"
     private const val HTTP_HEADER_CONTENT_TYPE = "Content-Type"
     private const val HTTP_CONTENT_TYPE_JSON = "application/json"
-    private const val JSON_KEY_USER_ID = "user_id"
+    private const val HTTP_HEADER_AUTHORIZATION = "Authorization"
     private const val JSON_KEY_DEVICE_ID = "device_id"
     private const val JSON_KEY_FCM_TOKEN = "fcm_token"
     private const val JSON_KEY_PLATFORM = "platform"
     private const val PLATFORM_ANDROID = "android"
     private const val TOAST_TOKEN_NOT_READY = "FCM token not ready yet"
+    private const val TOAST_NOT_LOGGED_IN = "Please login first"
     private const val CONNECTION_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 10_000
 
     fun registerDevice(
         context: Context,
-        userId: String,
         deviceId: String,
         fcmToken: String,
         apiBaseUrl: String
@@ -38,8 +38,19 @@ object DeviceRegister {
             return
         }
 
+        // Get ID token from Cognito
+        val idToken = CognitoAuth.getIdToken(context)
+        if (idToken == null) {
+            Toast.makeText(
+                context.applicationContext,
+                TOAST_NOT_LOGGED_IN,
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         val jsonBody = JSONObject().apply {
-            put(JSON_KEY_USER_ID, userId)
+            // user_id is now extracted from Cognito token by backend
             put(JSON_KEY_DEVICE_ID, deviceId)
             put(JSON_KEY_FCM_TOKEN, fcmToken)
             put(JSON_KEY_PLATFORM, PLATFORM_ANDROID)
@@ -56,6 +67,7 @@ object DeviceRegister {
                     readTimeout = READ_TIMEOUT_MS
                     doOutput = true
                     setRequestProperty(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
+                    setRequestProperty(HTTP_HEADER_AUTHORIZATION, "Bearer $idToken")
                 }
 
                 conn.outputStream.use { os ->

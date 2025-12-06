@@ -310,7 +310,9 @@ Deployment Complete!
 
 ```bash
 # Check CloudWatch Logs for initSchema
-aws logs tail /aws/lambda/dev-initSchema --since 5m
+# Get Lambda name from Terraform output first:
+LAMBDA_NAME=$(cd infra/Lambdas && terraform output -raw init_schema_function_name)
+aws logs tail /aws/lambda/$$LAMBDA_NAME --since 5m
 
 # Test register endpoint
 curl -X POST https://<api-url>/dev/devices/register \
