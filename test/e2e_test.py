@@ -29,12 +29,32 @@ load_env_file()
 
 # Load environment variables
 API_BASE_URL = os.environ.get('API_BASE_URL', '').rstrip('/')
-TEST_USER_ID = os.environ.get('TEST_USER_ID', 'debug-user-1')
+TEST_USER_ID = os.environ.get('TEST_USER_ID', '').strip()
 TIMEOUT_SECONDS = int(os.environ.get('TIMEOUT_SECONDS', '30'))
 
 if not API_BASE_URL:
     print('[ERROR] API_BASE_URL is not set', file=sys.stderr)
     sys.exit(1)
+
+if not TEST_USER_ID:
+    print('[ERROR] TEST_USER_ID is not set', file=sys.stderr)
+    print('[ERROR] Please copy the user_id from the Android app and set it in test/.env', file=sys.stderr)
+    print('[ERROR] Example: TEST_USER_ID=550e8400-e29b-41d4-a716-446655440000', file=sys.stderr)
+    sys.exit(1)
+
+# Validate TEST_USER_ID is a valid UUID format
+def is_valid_uuid(uuid_string):
+    """Check if string is a valid UUID format"""
+    try:
+        uuid.UUID(uuid_string)
+        return True
+    except ValueError:
+        return False
+
+if not is_valid_uuid(TEST_USER_ID):
+    print(f'[WARNING] TEST_USER_ID="{TEST_USER_ID}" does not appear to be a valid UUID format', file=sys.stderr)
+    print('[WARNING] Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', file=sys.stderr)
+    print('[WARNING] Continuing anyway, but this may cause issues...', file=sys.stderr)
 
 def http_request(url, method='GET', headers=None, data=None):
     """Make HTTP request and return (status_code, body)"""
@@ -60,6 +80,12 @@ def http_request(url, method='GET', headers=None, data=None):
 
 def main():
     try:
+        # Print test configuration
+        print(f'[INFO] Test configuration:')
+        print(f'[INFO]   API_BASE_URL = {API_BASE_URL}')
+        print(f'[INFO]   TEST_USER_ID = {TEST_USER_ID}')
+        print(f'[INFO]   TIMEOUT_SECONDS = {TIMEOUT_SECONDS}')
+        
         # 1. Generate nonce (UUID)
         nonce = str(uuid.uuid4())
         print(f'[INFO] Using nonce = {nonce}')

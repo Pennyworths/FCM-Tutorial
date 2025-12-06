@@ -41,19 +41,25 @@ make init-schema        # Initialize database
 ### Step 3: Copy App Info to `.env`
 
 The app displays:
-- `user_id`: e.g., `debug-user-1`
+- `user_id`: **auto-generated UUID** (e.g., `550e8400-e29b-41d4-a716-446655440000`)
 - `device_id`: auto-generated UUID
 - `FCM token`: Firebase token
+
+**Important:** The app now generates a random UUID for `user_id` on first launch. This UUID is persisted and displayed in the app UI.
 
 Create `test/.env`:
 
 ```env
 API_BASE_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
-TEST_USER_ID=debug-user-1
+TEST_USER_ID=550e8400-e29b-41d4-a716-446655440000
 TIMEOUT_SECONDS=30
 ```
 
-> ⚠️ `TEST_USER_ID` must match the `user_id` shown in the app.
+> ⚠️ **`TEST_USER_ID` must match the `user_id` shown in the Android app.**
+> 
+> 1. Open the Android app and check the `user_id` value displayed on screen
+> 2. Copy that UUID and paste it as `TEST_USER_ID` in the `.env` file
+> 3. The format should be: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
 
 ### Step 4: Run the Test
 
@@ -110,11 +116,15 @@ docker run --env-file .env fcm-e2e-test
 
 ```
 [INFO] Loading environment from /app/.env
-[INFO] Using nonce = 550e8400-e29b-41d4-a716-446655440000
+[INFO] Test configuration:
+[INFO]   API_BASE_URL = https://xxx.execute-api.us-east-1.amazonaws.com/dev
+[INFO]   TEST_USER_ID = 550e8400-e29b-41d4-a716-446655440000
+[INFO]   TIMEOUT_SECONDS = 30
+[INFO] Using nonce = 7c9e6679-7425-40de-944b-e07fc1f90ae7
 [INFO] POST https://xxx.execute-api.us-east-1.amazonaws.com/dev/messages/send
-[DEBUG] Payload: {"user_id": "debug-user-1", ...}
+[DEBUG] Payload: {"user_id": "550e8400-e29b-41d4-a716-446655440000", ...}
 [INFO] /messages/send HTTP 200, body={"ok":true,"sent_count":1}
-[INFO] Start polling .../test/status?nonce=550e8400-... for up to 30s
+[INFO] Start polling .../test/status?nonce=7c9e6679-... for up to 30s
 [DEBUG] GET .../test/status?nonce=... -> HTTP 200, body={"status":"PENDING",...}
 [DEBUG] GET .../test/status?nonce=... -> HTTP 200, body={"status":"ACKED",...}
 [SUCCESS] Status became ACKED 🎉
@@ -139,5 +149,5 @@ docker run --env-file .env fcm-e2e-test
 |---------|-------|----------|
 | `sent_count: 0` | No device registered | Open app, wait for registration, check logs |
 | Timeout | App not in foreground | Keep app open and visible |
-| Timeout | Wrong `TEST_USER_ID` | Match the `user_id` shown in app |
+| Timeout | Wrong `TEST_USER_ID` | Copy the UUID `user_id` shown in app (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) |
 | API error 404 | Backend not deployed | Run `make deploy` in `backend/` |
