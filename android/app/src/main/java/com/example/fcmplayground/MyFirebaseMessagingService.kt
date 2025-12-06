@@ -71,7 +71,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Save token for later use in UI and /devices/register
         FcmTokenStore.saveToken(this, token)
-        val userId = MainActivity.DEBUG_USER_ID
+        val userId = UserIdManager.getOrCreateUserId(applicationContext)
         val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
         val apiBaseUrl = BuildConfig.API_BASE_URL
 

@@ -32,7 +32,6 @@ class MainActivity : ComponentActivity() {
         const val TAG = "FCM"
         const val FCM_TOKEN_NOT_AVAILABLE = "FCM token not available yet"
         const val FCM_TOKEN_NOT_PREFIX = "FCM token not"
-        const val DEBUG_USER_ID = "debug-user-1"
         
         // Log messages
         const val LOG_PERMISSION_GRANTED = "Notification permission granted"
@@ -76,8 +75,8 @@ class MainActivity : ComponentActivity() {
         // Request notification permission for Android 13+
         requestNotificationPermission()
 
-        // fixed debug user id
-        val userId = DEBUG_USER_ID
+        // Get or create persistent user id (random UUID stored in SharedPreferences)
+        val userId = UserIdManager.getOrCreateUserId(this)
 
         // persistent device id from SharedPreferences
         val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
@@ -194,7 +193,7 @@ fun MainScreen(
 fun MainScreenPreview() {
     FcmplaygroundTheme {
         MainScreen(
-            userId = MainActivity.DEBUG_USER_ID,
+            userId = "preview-user-id",
             deviceId = MainScreenConstants.PREVIEW_DEVICE_ID,
             apiBaseUrl = MainScreenConstants.PREVIEW_API_BASE_URL,
             onReRegisterClick = {}
