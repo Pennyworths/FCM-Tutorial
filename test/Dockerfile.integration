@@ -1,0 +1,13 @@
+FROM python:3.11-alpine
+
+WORKDIR /app
+
+# Copy test script
+COPY integration_test.py /app/integration_test.py
+
+# Make script executable
+RUN chmod +x /app/integration_test.py
+
+# Set entrypoint
+ENTRYPOINT ["python3", "/app/integration_test.py"]
+

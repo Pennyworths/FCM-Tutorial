@@ -50,9 +50,11 @@ API_BASE_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
 2. App auto-registers device with backend
 3. You will see a **Toast**: `registerDevice: HTTP 200`
 4. Screen displays:
-   - `user_id`: debug-user-1
+   - `user_id`: auto-generated UUID (e.g., `550e8400-e29b-41d4-a716-446655440000`)
    - `device_id`: auto-generated UUID
    - `FCM token`: Firebase token
+   
+   > 💡 **Note:** Both `user_id` and `device_id` are auto-generated as UUIDs on first launch and persisted in SharedPreferences.
 
 ### Receiving Messages
 
