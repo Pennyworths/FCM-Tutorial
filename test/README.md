@@ -1,4 +1,191 @@
-# FCM E2E Test
+# FCM Tests
+
+This directory contains two types of tests:
+
+1. **E2E Test** (`e2e_test.py`) - Full end-to-end test with FCM push notifications and Android app
+2. **Integration Test** (`integration_test.py`) - Backend API and database integration test (no FCM/Android required)
+
+---
+
+## Integration Test
+
+Integration test verifies the integration between:
+- API Gateway endpoints
+- Lambda functions  
+- RDS PostgreSQL database
+
+**It does NOT test FCM push notifications or Android app.**
+
+### Prerequisites
+
+- **Docker** - installed and running
+- **AWS account** - with credentials configured
+- **Backend deployed** - Infrastructure and Lambda functions must be deployed
+
+### Run Integration Test
+
+```bash
+cd test
+
+# Build Docker image
+docker build -f Dockerfile.integration -t fcm-integration-test .
+
+# Run test (only needs API_BASE_URL)
+docker run --env-file .env fcm-integration-test
+```
+
+Or directly with Python:
+
+```bash
+cd test
+
+# Set environment variable
+export API_BASE_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
+
+# Run test
+python3 integration_test.py
+```
+
+### Integration Test Environment Variables
+
+Create `test/.env` with:
+
+```env
+API_BASE_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
+```
+
+**Note:** Integration test only needs `API_BASE_URL`. It does NOT need `TEST_USER_ID` (test creates its own test users).
+
+### Integration Test Expected Output
+
+#### ✅ Success
+
+```
+==================================================
+FCM API Integration Tests
+==================================================
+API Base URL: https://xxx.execute-api.us-east-1.amazonaws.com/dev
+
+==================================================
+Test Suite 1: Device Registration
+==================================================
+
+[TEST] Device Registration
+==================================================
+POST https://xxx.execute-api.us-east-1.amazonaws.com/dev/devices/register
+Payload: {
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "device_id": "660e8400-e29b-41d4-a716-446655440001",
+  "fcm_token": "test-fcm-token-...",
+  "platform": "android"
+}
+Response: HTTP 200
+Body: {"ok":true}
+[PASS] Device registration successful
+
+[TEST] Device Registration (Duplicate - Should Update)
+==================================================
+[PASS] Duplicate device registration successfully updated
+
+[TEST] Device Registration (iOS Platform)
+==================================================
+[PASS] iOS device registration successful
+
+[TEST] Device Registration (Invalid Platform)
+==================================================
+[PASS] Invalid platform correctly rejected
+
+[TEST] Device Registration (Missing Fields)
+==================================================
+[PASS] Missing fields correctly rejected
+
+==================================================
+Test Suite 2: Send Message
+==================================================
+
+[TEST] Send Message
+==================================================
+[PASS] Message send correctly returned ok=false, sent_count=0 (no devices)
+
+[TEST] Send Message (Create Test Run)
+==================================================
+[VERIFY] ✓ Test run confirmed created with status=PENDING
+
+[TEST] Send Message (User Not Found)
+==================================================
+[PASS] Non-existent user correctly returned ok=false, sent_count=0
+
+[TEST] Send Message (Missing Fields)
+==================================================
+[PASS] Missing fields correctly rejected
+
+==================================================
+Test Suite 3: Test Status
+==================================================
+
+[TEST] Test Status (Non-existent)
+==================================================
+[PASS] Test status correctly returned 404 for non-existent nonce
+
+[TEST] Test Status (Valid Nonce)
+==================================================
+[PASS] Test status correctly returned PENDING
+
+[TEST] Test Status (Missing Nonce)
+==================================================
+[PASS] Missing nonce parameter correctly rejected
+
+==================================================
+Test Suite 4: Test Acknowledgment
+==================================================
+
+[TEST] Test Ack (Valid)
+==================================================
+[PASS] Test ack successful
+
+[TEST] Test Status (After Ack - Should be ACKED)
+==================================================
+[PASS] Test status correctly shows ACKED after acknowledgment
+
+==================================================
+Test Summary
+==================================================
+Passed: 13
+Failed: 0
+Total: 13
+Success Rate: 100.0%
+
+[SUCCESS] All integration tests passed!
+```
+
+#### ❌ Failure Example
+
+```
+==================================================
+Test Suite 1: Device Registration
+==================================================
+
+[TEST] Device Registration
+==================================================
+POST https://xxx.execute-api.us-east-1.amazonaws.com/dev/devices/register
+Response: HTTP 500
+Body: {"error":"Database connection failed"}
+[FAIL] Expected 200, got 500
+
+==================================================
+Test Summary
+==================================================
+Passed: 0
+Failed: 1
+Total: 1
+Success Rate: 0.0%
+
+[FAIL] Some tests failed
+```
+
+---
+
+## E2E Test
 
 End-to-end test for verifying FCM push notification delivery.
 
