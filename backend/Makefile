@@ -6,7 +6,8 @@ BACKEND_DIR := $(shell pwd)
 SCRIPTS_DIR := $(PROJECT_ROOT)/scripts
 INFRA_LAMBDAS_DIR := $(PROJECT_ROOT)/infra/Lambdas
 
-# Default values
+# Default values (only used if not set in .env file or environment)
+# Note: Scripts will read from .env file, so these are just fallbacks
 AWS_REGION ?= us-east-1
 AWS_PROFILE ?= terraform
 IMAGE_TAG ?= latest
@@ -67,9 +68,7 @@ push: ## Build and push all images to ECR
 		(echo "$(RED)Error: Could not get ECR URL. Set ECR_REPO_URL manually or run 'make get-ecr-url'$(NC)" && exit 1); \
 	$(SCRIPTS_DIR)/build-and-push-backend.sh \
 		--repo-url "$$ECR_REPO_URL" \
-		--tag "$(IMAGE_TAG)" \
-		--region "$(AWS_REGION)" \
-		--profile "$(AWS_PROFILE)" || \
+		--tag "$(IMAGE_TAG)" || \
 		(echo "$(RED)Build and push failed. Make sure Docker is running and AWS credentials are configured.$(NC)" && exit 1)
 
 deploy: push ## Build and push all images to ECR (alias for push)
