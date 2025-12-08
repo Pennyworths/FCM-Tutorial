@@ -8,22 +8,15 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Configuration
+REGION="${AWS_REGION:-us-east-1}"
+AWS_PROFILE="${AWS_PROFILE:-terraform}"
+IMAGE_TAG="${IMAGE_TAG:-latest}"
+
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend"
-
-# Load environment variables from .env file FIRST (before setting defaults)
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    set -a
-    source "$PROJECT_ROOT/.env"
-    set +a
-fi
-
-# Configuration (set AFTER loading .env so .env values take precedence)
-REGION="${AWS_REGION:-us-east-1}"
-AWS_PROFILE="${AWS_PROFILE:-terraform}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 # ECR Repository URL (required)
 ECR_REPO_URL="${ECR_REPO_URL:-}"
@@ -98,32 +91,11 @@ echo -e "  AWS Profile: ${GREEN}$AWS_PROFILE${NC}"
 echo -e "  Backend Directory: ${GREEN}$BACKEND_DIR${NC}"
 echo ""
 
-# Extract region from ECR URL if REGION is not set correctly
-# ECR URL format: <account>.dkr.ecr.<region>.amazonaws.com
-if [[ "$ECR_REPO_URL" =~ \.dkr\.ecr\.([^.]+)\.amazonaws\.com ]]; then
-    ECR_REGION="${BASH_REMATCH[1]}"
-    if [ "$ECR_REGION" != "$REGION" ]; then
-        echo -e "${YELLOW}Warning: ECR region ($ECR_REGION) differs from configured region ($REGION). Using ECR region.${NC}"
-        REGION="$ECR_REGION"
-    fi
-fi
-
 # Login to ECR
-echo -e "${BLUE}Logging in to ECR (region: $REGION, profile: ${AWS_PROFILE:-default})...${NC}"
-
-# Build AWS CLI command with optional profile
-AWS_CMD="aws ecr get-login-password --region $REGION"
-if [ -n "$AWS_PROFILE" ]; then
-    AWS_CMD="$AWS_CMD --profile $AWS_PROFILE"
-fi
-
-if ! $AWS_CMD | docker login --username AWS --password-stdin "$ECR_REPO_URL" > /dev/null 2>&1; then
-    echo -e "${RED}Failed to login to ECR.${NC}"
-    echo -e "${YELLOW}Troubleshooting:${NC}"
-    echo -e "  1. Check AWS credentials: aws sts get-caller-identity ${AWS_PROFILE:+--profile $AWS_PROFILE}"
-    echo -e "  2. Verify region matches ECR repository region: $REGION"
-    echo -e "  3. Ensure AWS_PROFILE is set correctly (current: ${AWS_PROFILE:-not set})"
-    echo -e "  4. Check ECR repository exists: aws ecr describe-repositories --region $REGION ${AWS_PROFILE:+--profile $AWS_PROFILE}"
+echo -e "${BLUE}Logging in to ECR...${NC}"
+if ! aws ecr get-login-password --region "$REGION" --profile "$AWS_PROFILE" | \
+    docker login --username AWS --password-stdin "$ECR_REPO_URL"; then
+    echo -e "${RED}Failed to login to ECR. Check your AWS credentials.${NC}"
     exit 1
 fi
 echo -e "${GREEN}Logged in to ECR${NC}\n"
