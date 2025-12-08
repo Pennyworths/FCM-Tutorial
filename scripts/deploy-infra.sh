@@ -31,7 +31,7 @@ export AWS_PROFILE="${AWS_PROFILE:-terraform}"
 # Set Terraform variables from environment variables
 # AWS Configuration
 export TF_VAR_aws_region="${AWS_REGION:-us-east-1}"
-export TF_VAR_project_name="${AWS_project:-FCM}"
+export TF_VAR_project_name="${AWS_PROJECT:-FCM}"
 export TF_VAR_environment="${AWS_environment:-dev}"
 
 # Database credentials
