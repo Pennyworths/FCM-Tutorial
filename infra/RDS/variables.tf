@@ -66,3 +66,9 @@ variable "init_schema_file_path" {
   default     = ""
 }
 
+variable "engine_version" {
+  description = "PostgreSQL engine version. Use major version (e.g., '15') to auto-select latest minor version, or specify exact version (e.g., '15.4'). Can be set via TF_VAR_engine_version or ENGINE_VERSION environment variable."
+  type        = string
+  default     = "15"  # Use major version to auto-select latest available minor version
+}
+
