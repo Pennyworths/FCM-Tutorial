@@ -32,7 +32,7 @@ export AWS_PROFILE="${AWS_PROFILE:-terraform}"
 # AWS Configuration
 export TF_VAR_aws_region="${AWS_REGION:-us-east-1}"
 export TF_VAR_project_name="${AWS_PROJECT:-FCM}"
-export TF_VAR_environment="${AWS_environment:-dev}"
+export TF_VAR_environment="${AWS_ENVIRONMENT:-dev}"
 
 # Database credentials
 export TF_VAR_db_username="${DB_USERNAME:-}"
