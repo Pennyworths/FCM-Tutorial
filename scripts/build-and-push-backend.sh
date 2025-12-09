@@ -223,52 +223,49 @@ for func_tag in "${API_FUNCTIONS[@]}"; do
     echo -e "   Handler: $HANDLER_NAME\n"
 done
 
-# init-schema function (has its own Dockerfile)
-echo -e "${BLUE}===========================================${NC}"
-echo -e "${BLUE}Building init-schema Function${NC}"
-echo -e "${BLUE}===========================================${NC}\n"
-
-INIT_SCHEMA_IMAGE="$ECR_REPO_URL:init-schema-$IMAGE_TAG"
-
-echo -e "${BLUE}Building init-schema...${NC}"
-echo -e "  Image: $INIT_SCHEMA_IMAGE"
-
-# Build from backend/ directory to access Schema/
-cd "$BACKEND_DIR"
-
-if ! docker buildx build \
-    --platform linux/amd64 \
-    --load \
-    --provenance=false \
-    --sbom=false \
-    -f "Lambda/init-schema/Dockerfile" \
-    -t "$INIT_SCHEMA_IMAGE" \
-    .; then
-    echo -e "${RED}Failed to build init-schema image${NC}"
-    cd "$ORIGINAL_DIR"
-    exit 1
-fi
-
-# Push to ECR
-echo -e "  Pushing to ECR..."
-if ! docker push "$INIT_SCHEMA_IMAGE"; then
-    echo -e "${RED}Failed to push $INIT_SCHEMA_IMAGE${NC}"
-    cd "$ORIGINAL_DIR"
-    exit 1
-fi
-
-# Cleanup local image
-docker rmi "$INIT_SCHEMA_IMAGE" 2>/dev/null || true
-
-echo -e "${GREEN}✓ init-schema built and pushed successfully!${NC}"
-echo -e "   Image: $INIT_SCHEMA_IMAGE\n"
-
-# Return to original directory
-cd "$ORIGINAL_DIR"
-
 echo -e "${GREEN}===========================================${NC}"
 echo -e "${GREEN}All Backend Images Built and Pushed!${NC}"
 echo -e "${GREEN}===========================================${NC}\n"
+
+# Clean up untagged images (placeholders or orphaned images)
+echo -e "${BLUE}Cleaning up untagged images...${NC}"
+ECR_REPO_NAME=$(echo "$ECR_REPO_URL" | sed 's|.*/||')
+
+# Get all untagged images
+UNTAGGED_DIGESTS=$(aws ecr list-images \
+    --repository-name "$ECR_REPO_NAME" \
+    --region "$REGION" \
+    ${AWS_PROFILE:+--profile "$AWS_PROFILE"} \
+    --filter "tagStatus=UNTAGGED" \
+    --query 'imageIds[*].imageDigest' \
+    --output text 2>/dev/null || echo "")
+
+if [ -n "$UNTAGGED_DIGESTS" ] && [ "$UNTAGGED_DIGESTS" != "None" ]; then
+    # Convert space-separated digests to JSON array format
+    DIGEST_ARRAY=""
+    for digest in $UNTAGGED_DIGESTS; do
+        if [ -n "$DIGEST_ARRAY" ]; then
+            DIGEST_ARRAY="$DIGEST_ARRAY,"
+        fi
+        DIGEST_ARRAY="$DIGEST_ARRAY{\"imageDigest\":\"$digest\"}"
+    done
+    
+    # Delete untagged images
+    if aws ecr batch-delete-image \
+        --repository-name "$ECR_REPO_NAME" \
+        --region "$REGION" \
+        ${AWS_PROFILE:+--profile "$AWS_PROFILE"} \
+        --image-ids "[$DIGEST_ARRAY]" \
+        > /dev/null 2>&1; then
+        UNTAGGED_COUNT=$(echo "$UNTAGGED_DIGESTS" | wc -w | tr -d ' ')
+        echo -e "${GREEN}✓ Deleted $UNTAGGED_COUNT untagged image(s)${NC}"
+    else
+        echo -e "${YELLOW}⚠ Failed to delete untagged images (may not have permission)${NC}"
+    fi
+else
+    echo -e "${GREEN}✓ No untagged images to clean up${NC}"
+fi
+echo ""
 
 echo -e "${BLUE}Summary:${NC}"
 echo -e "  API Functions (4 separate images):"
@@ -276,7 +273,5 @@ for func_tag in "${API_FUNCTIONS[@]}"; do
     HANDLER_NAME=$(get_handler_name "$func_tag")
     echo -e "    • $func_tag ($HANDLER_NAME): ${GREEN}$ECR_REPO_URL:$func_tag-$IMAGE_TAG${NC}"
 done
-echo -e "  Init Schema:"
-echo -e "    • init-schema: ${GREEN}$ECR_REPO_URL:init-schema-$IMAGE_TAG${NC}"
 echo ""
 

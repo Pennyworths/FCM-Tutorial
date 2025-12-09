@@ -101,6 +101,7 @@ resource "aws_iam_role_policy" "lambda_secrets" {
 resource "aws_ecr_repository" "lambda_images" {
   name                 = "${var.environment}-lambda-images"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true  # Allow deletion even if repository contains images
 
   image_scanning_configuration {
     scan_on_push = true
@@ -295,42 +296,6 @@ resource "aws_lambda_function" "test_status" {
 
   tags = {
     Name = "${var.environment}-testStatusHandler"
-  }
-}
-
-# Lambda function: initSchema (for database schema initialization)
-resource "aws_lambda_function" "init_schema" {
-  function_name = "${var.environment}-initSchema"
-  role          = aws_iam_role.lambda.arn
-  package_type  = "Image"
-  timeout       = 60  # Longer timeout for schema initialization
-  memory_size   = 256
-
-  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:init-schema-${var.image_tag}"
-
-  # For Lambda provided runtime, handler is the executable name
-  # The entrypoint script will call /var/runtime/bootstrap
-  image_config {
-    command = ["bootstrap"]
-  }
-
-  vpc_config {
-    subnet_ids         = var.private_subnet_ids
-    security_group_ids = [var.lambda_security_group_id]
-  }
-
-  environment {
-    variables = {
-      RDS_HOST                = var.rds_host
-      RDS_PORT                = tostring(var.rds_port)
-      RDS_DB_NAME             = var.rds_db_name
-      RDS_USERNAME            = var.rds_username
-      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
-    }
-  }
-
-  tags = {
-    Name = "${var.environment}-initSchema"
   }
 }
 

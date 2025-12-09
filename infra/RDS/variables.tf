@@ -43,32 +43,33 @@ variable "db_username" {
 }
 
 variable "db_password" {
-  description = "Database master password. Can be set via TF_VAR_db_password or DB_PASSWORD environment variable"
+  description = "Database master password. Can be set via TF_VAR_db_password or DB_PASSWORD environment variable. If empty, a random password will be generated."
   type        = string
+  default     = ""
   sensitive   = true
 }
 
-variable "db_instance_class" {
-  description = "RDS instance class"
-  type        = string
-  default     = "db.t3.micro"
+variable "backup_retention_period" {
+  description = "Number of days to retain backups"
+  type        = number
+  default     = 7
 }
 
-variable "init_schema_lambda_name" {
-  description = "Name of initSchema Lambda function (optional, for automatic schema initialization)"
-  type        = string
-  default     = ""
+variable "serverlessv2_min_capacity" {
+  description = "Minimum Aurora Serverless v2 capacity (in ACU). Minimum is 0.5, maximum is 128."
+  type        = number
+  default     = 0.5
 }
 
-variable "init_schema_file_path" {
-  description = "Path to the database schema initialization SQL file. If empty, the module uses the default path ../../backend/Schema/init.sql relative to this module directory. Can be absolute or relative."
-  type        = string
-  default     = ""
+variable "serverlessv2_max_capacity" {
+  description = "Maximum Aurora Serverless v2 capacity (in ACU). Minimum is 0.5, maximum is 128."
+  type        = number
+  default     = 1.0
 }
 
 variable "engine_version" {
-  description = "PostgreSQL engine version. Use major version (e.g., '15') to auto-select latest minor version, or specify exact version (e.g., '15.4'). Can be set via TF_VAR_engine_version or ENGINE_VERSION environment variable."
+  description = "Aurora PostgreSQL engine version. Use major version (e.g., '15') for Aurora. Can be set via TF_VAR_engine_version or ENGINE_VERSION environment variable."
   type        = string
-  default     = "15"  # Use major version to auto-select latest available minor version
+  default     = "15"  # Aurora uses major version (e.g., 15, 14, 13)
 }
 

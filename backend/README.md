@@ -7,6 +7,7 @@
 - [Database Schema](#database-schema)
 - [RDS Connection](#rds-connection)
 - [Deployment](#deployment)
+- [Database Migrations](#database-migrations)
 - [Expected Output](#expected-output)
 
 ---
@@ -19,8 +20,29 @@ cd backend
 # Step 1: Deploy all Lambda functions
 make deploy
 
-# Step 2: Initialize database schema (REQUIRED after first deployment)
-make init-schema
+# Step 2: Run database migrations (REQUIRED after first deployment)
+cd migrations
+
+# Build Docker image (first time only)
+make build
+
+# Test database connection
+make test
+
+# Run migrations UP to create tables
+make up
+
+# Check migration status
+make status
+
+# List all database tables
+make tables
+
+# Query data from devices table
+make query TABLE=devices
+
+# Connect to database interactively (optional)
+make connect
 ```
 
 > ⚠️ **Prerequisites:**
@@ -28,19 +50,22 @@ make init-schema
 > - AWS CLI configured with appropriate credentials
 > - Docker installed and running
 
-> 🚨 **Important:** After the first deployment, you **MUST** run `init-schema` to create database tables. Without this step, all API calls will fail with database errors.
+> 🚨 **Important:** After the first deployment, you **MUST** run database migrations to create database tables. Without this step, all API calls will fail with database errors.
 
 ### Make Commands
 
 | Command | Description |
 |---------|-------------|
 | `make deploy` | Build and push all images to ECR |
-| `make init-schema` | Initialize database tables (required after first deploy) |
 | `make build` | Build images locally (no push) |
 | `make test` | Run all tests |
 | `make clean` | Remove local Docker images |
 
 > 💡 Run `make help` to see all available commands.
+
+### Database Migrations
+
+Database migrations are managed in the `migrations/` directory. See [Database Migrations](#database-migrations) section below for details.
 
 ---
 
@@ -258,8 +283,8 @@ Step 2: Build and Push Docker Images
 Step 3: Update Lambda Functions
   └── terraform apply in infra/Lambdas/
 
-Step 4: Initialize Database Schema (REQUIRED)
-  └── Invoke initSchema Lambda function
+Step 4: Run Database Migrations (REQUIRED)
+  └── cd migrations && make up
   └── Creates 'devices' and 'test_runs' tables
 ```
 
@@ -271,7 +296,6 @@ Step 4: Initialize Database Schema (REQUIRED)
 | `send-message` | `SendMessageHandler` | Send FCM notifications |
 | `test-ack` | `TestAckHandler` | E2E test acknowledgment |
 | `test-status` | `TestStatusHandler` | E2E test status query |
-| `init-schema` | `InitSchemaHandler` | Database initialization |
 
 ---
 
@@ -284,22 +308,18 @@ Step 4: Initialize Database Schema (REQUIRED)
 Backend Lambda Deployment
 ===========================================
 
-Step 1/4: Checking prerequisites...
+Step 1/3: Checking prerequisites...
 ✓ ECR repository found
 ✓ RDS connection info available
 
-Step 2/4: Building and pushing Docker images...
+Step 2/3: Building and pushing Docker images...
 ✓ register-device image pushed
 ✓ send-message image pushed
 ✓ test-ack image pushed
 ✓ test-status image pushed
-✓ init-schema image pushed
 
-Step 3/4: Updating Lambda functions...
+Step 3/3: Updating Lambda functions...
 ✓ Lambda functions updated
-
-Step 4/4: Initializing database schema...
-✓ Schema initialized successfully
 
 ===========================================
 Deployment Complete!
@@ -309,9 +329,6 @@ Deployment Complete!
 ### Verify Deployment
 
 ```bash
-# Check CloudWatch Logs for initSchema
-aws logs tail /aws/lambda/dev-initSchema --since 5m
-
 # Test register endpoint
 curl -X POST https://<api-url>/dev/devices/register \
   -H "Content-Type: application/json" \
@@ -324,6 +341,94 @@ curl -X POST https://<api-url>/dev/messages/send \
   -d '{"user_id":"test","title":"Hello","body":"World"}'
 # Expected: {"ok":true,"sent_count":1}
 ```
+
+---
+
+## Database Migrations
+
+Database migrations are managed using Go migrate in the `migrations/` directory.
+
+### Running Migrations
+
+After deploying infrastructure, run migrations to create database tables:
+
+```bash
+cd migrations
+
+# Step 1: Build Docker image (first time only)
+make build
+
+# Step 2: Test database connection
+make test
+
+# Step 3: Run migrations UP
+make up
+```
+
+### Migration Commands
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Run database migrations UP |
+| `make down` | Rollback migrations DOWN |
+| `make status` | Check current migration version |
+| `make test` | Test database connection |
+| `make connect` | Connect to database interactively |
+| `make tables` | List all database tables |
+| `make query TABLE=devices` | Query data from a table |
+
+### Viewing Database Tables
+
+After running migrations, you can view the database tables:
+
+```bash
+cd migrations
+
+# List all tables
+make tables
+
+# Query data from devices table
+make query TABLE=devices
+
+# Query data from test_runs table
+make query TABLE=test_runs
+
+# Query with limit
+make query TABLE=devices LIMIT=10
+```
+
+### Interactive Database Access
+
+For more complex queries, use interactive mode:
+
+```bash
+cd migrations
+make connect
+```
+
+Then in the `psql` prompt:
+```sql
+-- List all tables
+\dt
+
+-- View devices table data
+SELECT * FROM devices;
+
+-- View test_runs table data
+SELECT * FROM test_runs;
+
+-- Count records
+SELECT COUNT(*) FROM devices;
+SELECT COUNT(*) FROM test_runs;
+```
+
+### Migration Files
+
+Migration files are located in `migrations/migrate/`:
+- `000001_initial_schema.up.sql` - Creates `devices` and `test_runs` tables
+- `000001_initial_schema.down.sql` - Drops tables (rollback)
+
+> 💡 See `migrations/README.md` for more details on the migration system.
 
 > 💡 The remaining two endpoints (`/test/ack` and `/test/status`) are used for **E2E testing only**.
 > See `test/README.md` for how to run E2E tests.

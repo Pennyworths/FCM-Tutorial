@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -58,62 +62,67 @@ resource "aws_security_group" "rds" {
   }
 }
 
-# RDS Instance
-resource "aws_db_instance" "main" {
-  identifier             = "${var.environment}-postgres"
-  engine                 = "postgres"
-  engine_version         = var.engine_version  # Use variable to allow flexibility across regions
-  instance_class         = var.db_instance_class
-  allocated_storage      = 20
-  max_allocated_storage  = 100
-  storage_type           = "gp3"
-  storage_encrypted      = true
+# Random password for database (if not provided)
+resource "random_password" "db_password" {
+  count   = var.db_password == "" ? 1 : 0
+  length  = 16
+  special = false
+}
 
-  db_name  = var.db_name
-  username = var.db_username
-  password = var.db_password
+locals {
+  # Use provided password or generate random one
+  db_password = var.db_password != "" ? var.db_password : try(random_password.db_password[0].result, "")
+  
+  # Aurora Serverless v2 capacity settings
+  min_capacity = var.serverlessv2_min_capacity
+  max_capacity = var.serverlessv2_max_capacity
+}
 
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
+# Aurora Serverless v2 Cluster (PostgreSQL)
+resource "aws_rds_cluster" "main" {
+  cluster_identifier      = "${var.environment}-${lower(var.project_name)}-cluster"
+  engine                  = "aurora-postgresql"
+  engine_version          = var.engine_version
+  engine_mode             = "provisioned"
+  database_name           = var.db_name
+  master_username         = var.db_username
+  master_password         = local.db_password
+  db_subnet_group_name    = aws_db_subnet_group.main.name
+  vpc_security_group_ids  = [aws_security_group.rds.id]
+  backup_retention_period = var.backup_retention_period
+  preferred_backup_window = "03:00-04:00"
+  preferred_maintenance_window = "mon:04:00-mon:05:00"
+  skip_final_snapshot     = false
+  final_snapshot_identifier = "${var.environment}-${lower(var.project_name)}-final-snapshot"
+  storage_encrypted       = true
+  copy_tags_to_snapshot   = true
+  delete_automated_backups = true
+  enable_http_endpoint    = true  # Enable Query Editor and RDS Data API
 
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "mon:04:00-mon:05:00"
-
-  skip_final_snapshot = false # Set to false for production
-  deletion_protection = true
-
-  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+  # Serverless v2 settings
+  serverlessv2_scaling_configuration {
+    min_capacity = local.min_capacity
+    max_capacity = local.max_capacity
+  }
 
   tags = {
-    Name = "${var.environment}-postgres"
+    Name = "${var.environment}-${var.project_name}-aurora-cluster"
   }
 }
 
-# Local values for schema file path
-# Defaults to standard project structure if not provided
-locals {
-  init_schema_file_path = var.init_schema_file_path != "" ? var.init_schema_file_path : "${path.module}/../../backend/Schema/init.sql"
-}
+# Aurora Serverless v2 Instance
+resource "aws_rds_cluster_instance" "main" {
+  identifier         = "${var.environment}-${lower(var.project_name)}-instance"
+  cluster_identifier = aws_rds_cluster.main.id
+  instance_class     = "db.serverless"
+  engine             = aws_rds_cluster.main.engine
+  engine_version     = aws_rds_cluster.main.engine_version
+  
+  # Disable auto minor version upgrade to maintain IaC consistency
+  auto_minor_version_upgrade = false
 
-# Database Schema Initialization
-# Automatically invokes initSchema Lambda after RDS is created and available
-resource "aws_lambda_invocation" "init_schema" {
-  count = var.init_schema_lambda_name != "" ? 1 : 0
-
-  function_name = var.init_schema_lambda_name
-
-  triggers = {
-    rds_endpoint = aws_db_instance.main.endpoint
-    schema_hash  = filemd5(local.init_schema_file_path)
+  tags = {
+    Name = "${var.environment}-${var.project_name}-aurora-instance"
   }
-
-  input = jsonencode({
-    action = "init_schema"
-  })
-
-  depends_on = [
-    aws_db_instance.main
-  ]
 }
 

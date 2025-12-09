@@ -210,15 +210,18 @@ print_step "2" "Deploying RDS"
 cd "$PROJECT_ROOT/infra/RDS"
 
 # Check if required environment variables are set
-if [ -z "$TF_VAR_db_username" ] || [ -z "$TF_VAR_db_password" ]; then
-    echo -e "${RED}Error: DB credentials not found!${NC}"
-    echo -e "${YELLOW}Please set the following environment variables:${NC}"
+if [ -z "$TF_VAR_db_username" ]; then
+    echo -e "${RED}Error: DB username not found!${NC}"
+    echo -e "${YELLOW}Please set the following environment variable:${NC}"
     echo -e "  export DB_USERNAME=\"your_username\""
-    echo -e "  export DB_PASSWORD=\"your_password\""
     echo -e "${YELLOW}Or create a .env file in the project root with:${NC}"
     echo -e "  DB_USERNAME=your_username"
-    echo -e "  DB_PASSWORD=your_password"
     exit 1
+fi
+
+# Password is optional - if not provided, RDS will auto-generate it
+if [ -z "$TF_VAR_db_password" ]; then
+    echo -e "${YELLOW}Note: DB_PASSWORD not provided. RDS will auto-generate a password.${NC}"
 fi
 
 terraform_apply "infra/RDS" "RDS" \
@@ -238,6 +241,22 @@ echo -e "${GREEN}RDS Outputs:${NC}"
 echo -e "  RDS Host: $RDS_HOST"
 echo -e "  RDS Port: $RDS_PORT"
 echo -e "  RDS DB Name: $RDS_DB_NAME"
+
+# Get RDS password (use auto-generated if not provided)
+if [ -z "$TF_VAR_rds_password" ] && [ -z "$TF_VAR_db_password" ]; then
+    echo -e "${YELLOW}No password provided, using auto-generated password from RDS...${NC}"
+    RDS_PASSWORD_FROM_OUTPUT=$(terraform output -raw db_password 2>/dev/null || echo "")
+    if [ -n "$RDS_PASSWORD_FROM_OUTPUT" ]; then
+        TF_VAR_rds_password="$RDS_PASSWORD_FROM_OUTPUT"
+        echo -e "${GREEN}Using auto-generated password from RDS${NC}"
+    else
+        echo -e "${RED}Error: Could not retrieve password from RDS output${NC}"
+        exit 1
+    fi
+else
+    # Use provided password
+    TF_VAR_rds_password="${TF_VAR_rds_password:-${TF_VAR_db_password}}"
+fi
 
 # Step 3: Deploy Secrets Manager
 print_step "3" "Deploying Secrets Manager"
@@ -280,11 +299,9 @@ if [ "$SKIP_LAMBDAS" = false ]; then
         exit 1
     fi
     
+    # Password should be available from Secrets step (either provided or auto-generated)
     if [ -z "$TF_VAR_rds_password" ]; then
-        echo -e "${RED}Error: RDS password not found!${NC}"
-        echo -e "${YELLOW}Please set the following environment variable:${NC}"
-        echo -e "  export RDS_PASSWORD=\"your_password\" (or DB_PASSWORD)"
-        exit 1
+        echo -e "${YELLOW}Note: RDS password will be retrieved from Secrets Manager${NC}"
     fi
     
     # Prepare terraform variables array
@@ -374,7 +391,7 @@ if [ "$SKIP_LAMBDAS" = false ]; then
     
     # Create placeholder images for all Lambda functions
     # IMAGE_TAG is already set from environment or command line
-    FUNCTIONS=("register-device" "send-message" "test-ack" "test-status" "init-schema")
+    FUNCTIONS=("register-device" "send-message" "test-ack" "test-status")
     
     echo -e "${BLUE}Creating placeholder images...${NC}"
     PLACEHOLDER_DOCKERFILE=$(mktemp)
@@ -430,7 +447,6 @@ EOF
     TEST_ACK_NAME=$(terraform output -raw test_ack_function_name)
     TEST_STATUS_ARN=$(terraform output -raw test_status_function_arn)
     TEST_STATUS_NAME=$(terraform output -raw test_status_function_name)
-    INIT_SCHEMA_NAME=$(terraform output -raw init_schema_function_name 2>/dev/null || echo "")
     
     echo -e "${GREEN}Lambda Functions deployed successfully!${NC}"
     echo -e "${GREEN}Lambda Outputs:${NC}"
@@ -438,7 +454,6 @@ EOF
     echo -e "  Send Message ARN: $SEND_MESSAGE_ARN"
     echo -e "  Test Ack ARN: $TEST_ACK_ARN"
     echo -e "  Test Status ARN: $TEST_STATUS_ARN"
-    echo -e "  Init Schema Name: $INIT_SCHEMA_NAME"
     echo -e "  ECR Repository: $ECR_REPO_URL"
     
     # Update Lambda functions to use latest images (if they exist in ECR)
@@ -452,7 +467,6 @@ EOF
         "send-message:$SEND_MESSAGE_NAME"
         "test-ack:$TEST_ACK_NAME"
         "test-status:$TEST_STATUS_NAME"
-        "init-schema:$INIT_SCHEMA_NAME"
     )
     
     for func_pair in "${FUNCTIONS[@]}"; do
@@ -490,45 +504,6 @@ EOF
         fi
     done
     echo -e "${GREEN}✓ Lambda functions update complete${NC}\n"
-    
-    # Update RDS to trigger init-schema Lambda (if Lambda name is available)
-    # Note: This will fail if Lambda is using placeholder image.
-    # Skip this step during initial deployment, run it after deploying actual backend images.
-    if [ -n "$INIT_SCHEMA_NAME" ]; then
-        print_step "4b" "Updating RDS to trigger init-schema Lambda"
-        echo -e "${YELLOW}⚠️  Warning: This step will fail if Lambda is using placeholder image.${NC}"
-        echo -e "${YELLOW}   This is expected during initial deployment.${NC}"
-        echo -e "${YELLOW}   The deployment will continue even if this step fails.${NC}"
-        echo ""
-        
-        # Try to trigger init-schema, but don't fail the entire deployment if it fails
-        # Use set +e to allow the command to fail without exiting
-        set +e
-        cd "$PROJECT_ROOT/infra/RDS"
-        terraform init -upgrade > /dev/null 2>&1
-        terraform apply -auto-approve \
-            -var="vpc_id=$VPC_ID" \
-            -var="private_subnet_ids=$PRIVATE_SUBNET_IDS" \
-            -var="lambda_security_group_id=$LAMBDA_SG_ID" \
-            -var="init_schema_lambda_name=$INIT_SCHEMA_NAME" \
-            -var="db_username=$TF_VAR_db_username" \
-            -var="db_password=$TF_VAR_db_password" 2>&1
-        INIT_SCHEMA_RESULT=$?
-        set -e
-        
-        if [ $INIT_SCHEMA_RESULT -ne 0 ]; then
-            echo -e "\n${YELLOW}⚠️  init-schema Lambda invocation failed (expected if using placeholder image)${NC}"
-            echo -e "${BLUE}This is normal during initial deployment. To initialize schema later:${NC}"
-            echo -e "${GREEN}  1. Deploy actual backend images:${NC}"
-            echo -e "${GREEN}     cd backend && make deploy IMAGE_TAG=$IMAGE_TAG${NC}"
-            echo -e "${GREEN}  2. Then trigger init-schema:${NC}"
-            echo -e "${GREEN}     cd infra/RDS${NC}"
-            echo -e "${GREEN}     terraform apply -auto-approve -var=\"vpc_id=$VPC_ID\" -var=\"private_subnet_ids=$PRIVATE_SUBNET_IDS\" -var=\"lambda_security_group_id=$LAMBDA_SG_ID\" -var=\"init_schema_lambda_name=$INIT_SCHEMA_NAME\" -var=\"db_username=$TF_VAR_db_username\" -var=\"db_password=$TF_VAR_db_password\"${NC}"
-            echo ""
-        else
-            echo -e "${GREEN}✓ Schema initialization triggered successfully${NC}"
-        fi
-    fi
 else
     echo -e "${YELLOW}Skipping Lambda deployment (--skip-lambdas flag set)${NC}"
     REGISTER_DEVICE_ARN=""
@@ -568,6 +543,54 @@ elif [ "$SKIP_API_GATEWAY" = true ]; then
     echo -e "${YELLOW}Skipping API Gateway deployment (--skip-api-gateway flag set)${NC}"
 fi
 
+# Step 6: Deploy Migrations (requires VPC, RDS, Secrets)
+print_step "6" "Deploying Migration Infrastructure"
+cd "$PROJECT_ROOT/infra/Migrations"
+
+# Get required values from state files
+VPC_ID=""
+PUBLIC_SUBNET_ID=""
+RDS_SG_ID=""
+DATABASE_HOST=""
+DATABASE_NAME=""
+DATABASE_SECRET_ARN=""
+
+# Get VPC outputs
+if [ -f "$PROJECT_ROOT/infra/VPC/terraform.tfstate" ]; then
+    VPC_ID=$(cd "$PROJECT_ROOT/infra/VPC" && terraform output -raw vpc_id 2>/dev/null || echo "")
+    PUBLIC_SUBNET_ID=$(cd "$PROJECT_ROOT/infra/VPC" && terraform output -raw public_subnet_id 2>/dev/null || echo "")
+fi
+
+# Get RDS outputs
+if [ -f "$PROJECT_ROOT/infra/RDS/terraform.tfstate" ]; then
+    RDS_SG_ID=$(cd "$PROJECT_ROOT/infra/RDS" && terraform output -raw rds_security_group_id 2>/dev/null || echo "")
+    DATABASE_HOST=$(cd "$PROJECT_ROOT/infra/RDS" && terraform output -raw rds_host 2>/dev/null || echo "")
+    DATABASE_NAME=$(cd "$PROJECT_ROOT/infra/RDS" && terraform output -raw rds_db_name 2>/dev/null || echo "")
+fi
+
+# Get Secrets outputs
+if [ -f "$PROJECT_ROOT/infra/Secrets/terraform.tfstate" ]; then
+    DATABASE_SECRET_ARN=$(cd "$PROJECT_ROOT/infra/Secrets" && terraform output -raw rds_password_secret_arn 2>/dev/null || echo "")
+fi
+
+# Initialize Terraform if needed
+if [ ! -d ".terraform" ]; then
+    echo -e "${BLUE}Initializing Migrations Terraform module...${NC}"
+    terraform init -upgrade
+fi
+
+# Deploy Migrations
+terraform_apply "infra/Migrations" "Migration Infrastructure" \
+    -var="aws_region=$TF_VAR_aws_region" \
+    -var="project_name=$TF_VAR_project_name" \
+    -var="environment=$TF_VAR_environment" \
+    -var="vpc_id=$VPC_ID" \
+    -var="public_subnet_id=$PUBLIC_SUBNET_ID" \
+    -var="rds_security_group_id=$RDS_SG_ID" \
+    -var="database_secret_arn=$DATABASE_SECRET_ARN" \
+    -var="database_host=$DATABASE_HOST" \
+    -var="database_name=$DATABASE_NAME"
+
 echo -e "\n${GREEN}===========================================${NC}"
 echo -e "${GREEN}Infrastructure Deployment Complete!${NC}"
 echo -e "${GREEN}===========================================${NC}\n"
@@ -576,6 +599,7 @@ echo -e "${BLUE}Summary:${NC}"
 echo -e "  ✓ VPC: Deployed"
 echo -e "  ✓ RDS: Deployed"
 echo -e "  ✓ Secrets Manager: Deployed"
+echo -e "  ✓ Migration Infrastructure: Deployed"
 if [ "$SKIP_LAMBDAS" = false ]; then
     echo -e "  ✓ Lambda Functions: Deployed"
     echo -e "  ✓ ECR Repository: Created"
