@@ -25,6 +25,13 @@ REGION="${AWS_REGION:-us-east-1}"
 AWS_PROFILE="${AWS_PROFILE:-terraform}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
+# Validate IMAGE_TAG is not empty (prevent tags like "func--" or "-")
+if [ -z "$IMAGE_TAG" ] || [ "$IMAGE_TAG" = "-" ]; then
+    echo -e "${RED}Error: IMAGE_TAG cannot be empty or '-'${NC}"
+    echo -e "${YELLOW}Please set IMAGE_TAG environment variable or use --tag option${NC}"
+    exit 1
+fi
+
 # ECR Repository URL (required)
 ECR_REPO_URL="${ECR_REPO_URL:-}"
 
@@ -58,6 +65,10 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -t|--tag)
+            if [ -z "$2" ]; then
+                echo -e "${RED}Error: --tag requires a value${NC}"
+                usage
+            fi
             IMAGE_TAG="$2"
             shift 2
             ;;

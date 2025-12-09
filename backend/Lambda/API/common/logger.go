@@ -52,7 +52,7 @@ func (e *ErrorResponse) ToJSON() string {
 // HandleError logs the error and returns a formatted error response
 func (l *Logger) HandleError(ctx context.Context, err error, message string) *ErrorResponse {
 	// Log the error
-	l.Error(ctx, err, message)
+	l.Error(ctx, err, "%s", message)
 
 	// Extract request ID from context if available
 	requestID := ""

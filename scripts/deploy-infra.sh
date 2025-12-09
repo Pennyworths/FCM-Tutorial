@@ -25,6 +25,13 @@ fi
 REGION="${AWS_REGION:-us-east-1}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
+# Validate IMAGE_TAG is not empty (prevent tags like "func--" or "-")
+if [ -z "$IMAGE_TAG" ] || [ "$IMAGE_TAG" = "-" ]; then
+    echo -e "${RED}Error: IMAGE_TAG cannot be empty or '-'${NC}"
+    echo -e "${YELLOW}Please set IMAGE_TAG environment variable or use --tag option${NC}"
+    exit 1
+fi
+
 # AWS Profile (use terraform profile if AWS_PROFILE not set)
 export AWS_PROFILE="${AWS_PROFILE:-terraform}"
 
@@ -103,6 +110,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -t|--tag)
+            if [ -z "$2" ]; then
+                echo -e "${RED}Error: --tag requires a value${NC}"
+                usage
+            fi
             IMAGE_TAG="$2"
             shift 2
             ;;
@@ -429,6 +440,56 @@ EOF
     echo -e "  Test Status ARN: $TEST_STATUS_ARN"
     echo -e "  Init Schema Name: $INIT_SCHEMA_NAME"
     echo -e "  ECR Repository: $ECR_REPO_URL"
+    
+    # Update Lambda functions to use latest images (if they exist in ECR)
+    echo -e "\n${BLUE}Updating Lambda functions to use latest images from ECR...${NC}"
+    
+    # Extract repository name from ECR URL (format: account.dkr.ecr.region.amazonaws.com/repo-name)
+    ECR_REPO_NAME=$(echo "$ECR_REPO_URL" | cut -d'/' -f2)
+    
+    FUNCTIONS=(
+        "register-device:$REGISTER_DEVICE_NAME"
+        "send-message:$SEND_MESSAGE_NAME"
+        "test-ack:$TEST_ACK_NAME"
+        "test-status:$TEST_STATUS_NAME"
+        "init-schema:$INIT_SCHEMA_NAME"
+    )
+    
+    for func_pair in "${FUNCTIONS[@]}"; do
+        func_tag=$(echo "$func_pair" | cut -d: -f1)
+        func_name=$(echo "$func_pair" | cut -d: -f2)
+        
+        if [ -z "$func_name" ]; then
+            continue
+        fi
+        
+        image_uri="$ECR_REPO_URL:$func_tag-$IMAGE_TAG"
+        echo -e "${BLUE}  Updating $func_name...${NC}"
+        
+        # Check if image exists in ECR before updating
+        if aws ecr describe-images \
+            --repository-name "$ECR_REPO_NAME" \
+            --image-ids "imageTag=$func_tag-$IMAGE_TAG" \
+            --region "$REGION" \
+            ${AWS_PROFILE:+--profile "$AWS_PROFILE"} \
+            > /dev/null 2>&1; then
+            
+            if aws lambda update-function-code \
+                --function-name "$func_name" \
+                --image-uri "$image_uri" \
+                --region "$REGION" \
+                ${AWS_PROFILE:+--profile "$AWS_PROFILE"} \
+                --query '[FunctionName,LastUpdateStatus]' \
+                --output text > /dev/null 2>&1; then
+                echo -e "${GREEN}    ✓ $func_name updated successfully${NC}"
+            else
+                echo -e "${YELLOW}    ⚠ $func_name update failed${NC}"
+            fi
+        else
+            echo -e "${YELLOW}    ⚠ Image $func_tag-$IMAGE_TAG not found in ECR, skipping update (using placeholder)${NC}"
+        fi
+    done
+    echo -e "${GREEN}✓ Lambda functions update complete${NC}\n"
     
     # Update RDS to trigger init-schema Lambda (if Lambda name is available)
     # Note: This will fail if Lambda is using placeholder image.

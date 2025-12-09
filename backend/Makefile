@@ -71,12 +71,57 @@ push: ## Build and push all images to ECR
 		--tag "$(IMAGE_TAG)" || \
 		(echo "$(RED)Build and push failed. Make sure Docker is running and AWS credentials are configured.$(NC)" && exit 1)
 
-deploy: push ## Build and push all images to ECR (alias for push)
+update-lambdas: ## Update Lambda functions to use latest images
+	@echo "$(BLUE)Updating Lambda functions to use latest images...$(NC)"
+	@if [ -f $(PROJECT_ROOT)/.env ]; then \
+		export $$(grep -v '^#' $(PROJECT_ROOT)/.env | xargs); \
+	fi; \
+	ECR_REPO_URL=$$(cd $(INFRA_LAMBDAS_DIR) && terraform output -raw ecr_repository_url 2>/dev/null) || \
+		(echo "$(RED)Error: Could not get ECR URL. Make sure infrastructure is deployed.$(NC)" && exit 1); \
+	REGION="$${AWS_REGION:-us-east-1}"; \
+	PROFILE="$${AWS_PROFILE:-terraform}"; \
+	ENV="$${AWS_environment:-dev}"; \
+	echo "$(BLUE)Environment: $$ENV, Region: $$REGION, Profile: $$PROFILE$(NC)"; \
+	echo "$(BLUE)ECR Repository: $$ECR_REPO_URL$(NC)"; \
+	echo ""; \
+	FUNCTIONS="register-device:registerDeviceHandler send-message:sendMessageHandler test-ack:testAckHandler test-status:testStatusHandler init-schema:initSchema"; \
+	for func_pair in $$FUNCTIONS; do \
+		func=$$(echo $$func_pair | cut -d: -f1); \
+		handler=$$(echo $$func_pair | cut -d: -f2); \
+		FUNC_NAME="$$ENV-$$handler"; \
+		IMAGE_URI="$$ECR_REPO_URL:$$func-$(IMAGE_TAG)"; \
+		echo "$(BLUE)Updating $$FUNC_NAME...$(NC)"; \
+		if aws lambda update-function-code \
+			--function-name "$$FUNC_NAME" \
+			--image-uri "$$IMAGE_URI" \
+			--region "$$REGION" \
+			--profile "$$PROFILE" \
+			--query '[FunctionName,LastUpdateStatus]' \
+			--output text > /dev/null 2>&1; then \
+			echo "$(GREEN)✓ $$FUNC_NAME updated successfully$(NC)"; \
+		else \
+			echo "$(YELLOW)⚠ $$FUNC_NAME update failed (function may not exist yet)$(NC)"; \
+		fi; \
+	done
+	@echo "$(GREEN)✓ Lambda functions update complete!$(NC)"
+
+deploy: push update-lambdas ## Build and push all images to ECR, then update Lambda functions
 	@echo "$(GREEN)✓ Deployment complete!$(NC)"
 
 init-schema: ## Initialize database schema (REQUIRED after first deployment)
 	@echo "$(BLUE)Initializing database schema...$(NC)"
-	@aws lambda invoke --function-name dev-initSchema --payload '{}' /dev/stdout
+	@if [ -f $(PROJECT_ROOT)/.env ]; then \
+		export $$(grep -v '^#' $(PROJECT_ROOT)/.env | xargs); \
+	fi; \
+	FUNCTION_NAME="$${AWS_environment:-dev}-initSchema"; \
+	REGION="$${AWS_REGION:-us-east-1}"; \
+	PROFILE="$${AWS_PROFILE:-terraform}"; \
+	aws lambda invoke \
+		--function-name "$$FUNCTION_NAME" \
+		--region "$$REGION" \
+		--profile "$$PROFILE" \
+		--payload '{}' \
+		/dev/stdout
 	@echo ""
 	@echo "$(GREEN)✓ Schema initialization complete$(NC)"
 
