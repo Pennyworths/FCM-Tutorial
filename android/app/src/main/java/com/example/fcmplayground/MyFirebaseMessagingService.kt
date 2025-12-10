@@ -21,7 +21,6 @@ import java.net.URL
 class MyFirebaseMessagingService : FirebaseMessagingService() {
     companion object {
         private const val TAG = "FCM"
-        private val ACK_ENDPOINT = ApiRoutes.TEST_ACK
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 10_000
         
@@ -59,6 +58,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val LOG_NEW_TOKEN = "New token: "
         private const val LOG_E2E_MSG = "e2e_test message with nonce=%s, sending %s"
         private const val LOG_E2E_MISSING_NONCE = "e2e_test message missing nonce"
+        private const val LOG_MSG_ACK = "Regular message with nonce=%s, sending %s"
         private const val LOG_POST_REQUEST = "POST %s body=%s"
         private const val LOG_READ_RESPONSE_ERROR = "Error reading response stream"
         private const val LOG_ACK_RESPONSE = "%s HTTP %d, response=%s"
@@ -97,20 +97,28 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val type = data[DATA_KEY_TYPE]
         val title = remoteMessage.notification?.title ?: data[DATA_KEY_TITLE] ?: DEFAULT_TITLE
         val body = remoteMessage.notification?.body ?: data[DATA_KEY_BODY] ?: DEFAULT_BODY
+        val nonce = data[DATA_KEY_NONCE]
 
         if (type == MSG_TYPE_E2E_TEST) {
-            // e2e test message: show Toast and call ack
+            // e2e test message: show Toast and call /test/ack
             showToast(String.format(TOAST_FORMAT, title, body))
-            val nonce = data[DATA_KEY_NONCE]
             if (!nonce.isNullOrBlank()) {
-                Log.d(TAG, String.format(LOG_E2E_MSG, nonce, ACK_ENDPOINT))
-                ackTestMessage(nonce)
+                Log.d(TAG, String.format(LOG_E2E_MSG, nonce, ApiRoutes.TEST_ACK))
+                ackMessage(nonce, ApiRoutes.TEST_ACK)
             } else {
                 Log.w(TAG, LOG_E2E_MISSING_NONCE)
             }
         } else {
             // Normal message: show system notification
             showNotification(title, body)
+            
+            // Debug: log whether nonce is present
+            if (nonce.isNullOrBlank()) {
+                Log.d(TAG, "Regular message received but no nonce in data. Data keys: ${data.keys}")
+            } else {
+                Log.d(TAG, String.format(LOG_MSG_ACK, nonce, ApiRoutes.MESSAGES_ACK))
+                ackMessage(nonce, ApiRoutes.MESSAGES_ACK)
+            }
         }
     }
 
@@ -124,14 +132,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * Call POST /test/ack with { "nonce": "<nonce>" }.
+     * Call POST /test/ack or POST /messages/ack with { "nonce": "<nonce>" }.
+     * @param nonce The nonce to acknowledge
+     * @param endpoint The endpoint to call (either ApiRoutes.TEST_ACK or ApiRoutes.MESSAGES_ACK)
      */
-    private fun ackTestMessage(nonce: String) {
+    private fun ackMessage(nonce: String, endpoint: String) {
         // Fire-and-forget background call
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val apiBaseUrl = BuildConfig.API_BASE_URL
-                val url = URL("$apiBaseUrl$ACK_ENDPOINT")
+                val url = URL("$apiBaseUrl$endpoint")
 
                 val jsonBody = JSONObject().apply {
                     put(JSON_KEY_NONCE, nonce)
@@ -164,9 +174,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
                 conn.disconnect()
 
-                Log.d(TAG, String.format(LOG_ACK_RESPONSE, ACK_ENDPOINT, code, responseText))
+                Log.d(TAG, String.format(LOG_ACK_RESPONSE, endpoint, code, responseText))
             } catch (e: Exception) {
-                Log.e(TAG, String.format(LOG_ACK_FAILED, ACK_ENDPOINT), e)
+                Log.e(TAG, String.format(LOG_ACK_FAILED, endpoint), e)
             }
         }
     }

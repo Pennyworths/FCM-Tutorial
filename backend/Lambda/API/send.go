@@ -61,62 +61,68 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		return logger.InternalServerError(ctx, err, "Database query failed")
 	}
 
-	// Send message to each device
-	for _, device := range devices {
-		err = sendMessageToDevice(ctx, device.FcmToken, sendMessageRequest.Title, sendMessageRequest.Body, sendMessageRequest.Data)
-		if err != nil {
-			return logger.InternalServerError(ctx, err, "Failed to send message to device")
-		}
-	}
-
-	// If data.type == "e2e_test" and data.nonce is present, insert into test_runs
-	// Otherwise, automatically acknowledge the message (for non-e2e_test messages)
+	// Parse data to check if it's e2e_test and extract nonce
+	// Note: e2e_test messages already have nonce in request data (from test script)
+	//       Regular messages need nonce generated and added to data
+	var dataMap map[string]interface{}
+	var nonce string
 	isE2ETest := false
+
 	if len(sendMessageRequest.Data) > 0 {
-		var dataMap map[string]interface{}
 		if err := json.Unmarshal(sendMessageRequest.Data, &dataMap); err == nil {
+			// Check if this is an e2e_test message (nonce already provided in request data)
 			if dataType, ok := dataMap["type"].(string); ok && dataType == "e2e_test" {
 				isE2ETest = true
-				if nonce, ok := dataMap["nonce"].(string); ok && nonce != "" {
-					// Insert test run record
-					err = queries.CreateTestRun(ctx, sqlc.CreateTestRunParams{
-						Nonce:  nonce,
-						UserID: sendMessageRequest.UserID,
-					})
-					if err != nil {
-						logger.Error(ctx, err, "Failed to create test run record")
-						// Don't fail the request if test run creation fails, just log it
-					} else {
-						logger.Info(ctx, "Created test run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
-					}
+				if nonceVal, ok := dataMap["nonce"].(string); ok && nonceVal != "" {
+					nonce = nonceVal
 				}
 			}
 		}
 	}
 
-	// For non-e2e_test messages, create test run record and automatically acknowledge
+	// For non-e2e_test messages: generate nonce and add to data (same as e2e_test)
+	// This ensures Android receives nonce in FCM message data and can call /messages/ack
+	var finalData json.RawMessage = sendMessageRequest.Data
 	if !isE2ETest && len(devices) > 0 {
-		// Generate a nonce for the message (similar to e2e_test)
-		nonce := fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
+		// Generate nonce (same format as e2e_test uses)
+		nonce = fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
+		
+		// Parse existing data or create new map
+		if dataMap == nil {
+			dataMap = make(map[string]interface{})
+		}
+		// Add nonce to data so Android can receive it (e2e_test already has this)
+		dataMap["nonce"] = nonce
+		
+		// Marshal back to json.RawMessage for FCM
+		finalData, err = json.Marshal(dataMap)
+		if err != nil {
+			return logger.InternalServerError(ctx, err, "Failed to marshal data payload")
+		}
+	}
 
-		// Insert test run record (reusing test_runs table for message tracking)
+	// Send message to each device (data includes nonce for both e2e_test and regular messages)
+	for _, device := range devices {
+		err = sendMessageToDevice(ctx, device.FcmToken, sendMessageRequest.Title, sendMessageRequest.Body, finalData)
+		if err != nil {
+			return logger.InternalServerError(ctx, err, "Failed to send message to device")
+		}
+	}
+
+	// Create test run record for tracking (both e2e_test and regular messages)
+	if nonce != "" {
 		err = queries.CreateTestRun(ctx, sqlc.CreateTestRunParams{
 			Nonce:  nonce,
 			UserID: sendMessageRequest.UserID,
 		})
 		if err != nil {
-			logger.Error(ctx, err, "Failed to create message run record")
+			logger.Error(ctx, err, "Failed to create test run record: nonce=%s", nonce)
 			// Don't fail the request if test run creation fails, just log it
 		} else {
-			logger.Info(ctx, "Created message run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
-
-			// Automatically acknowledge the message (update status to ACKED)
-			_, err = queries.AckTestRun(ctx, nonce)
-			if err != nil {
-				logger.Error(ctx, err, "Failed to acknowledge message run: nonce=%s", nonce)
-				// Don't fail the request if ack fails, just log it
+			if isE2ETest {
+				logger.Info(ctx, "Created test run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
 			} else {
-				logger.Info(ctx, "Message automatically acknowledged: nonce=%s", nonce)
+				logger.Info(ctx, "Created message run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
 			}
 		}
 	}
