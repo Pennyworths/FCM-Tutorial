@@ -164,6 +164,9 @@ get_handler_name() {
         "test-status")
             echo "TestStatusHandler"
             ;;
+        "message-ack")
+            echo "MessageAckHandler"
+            ;;
         *)
             echo "RegisterDeviceHandler"  # default
             ;;
@@ -175,10 +178,11 @@ API_FUNCTIONS=(
     "send-message"
     "test-ack"
     "test-status"
+    "message-ack"
 )
 
 echo -e "${BLUE}===========================================${NC}"
-echo -e "${BLUE}Building API Functions (4 separate images)${NC}"
+echo -e "${BLUE}Building API Functions (5 separate images)${NC}"
 echo -e "${BLUE}===========================================${NC}\n"
 
 for func_tag in "${API_FUNCTIONS[@]}"; do
@@ -268,7 +272,7 @@ fi
 echo ""
 
 echo -e "${BLUE}Summary:${NC}"
-echo -e "  API Functions (4 separate images):"
+echo -e "  API Functions (5 separate images):"
 for func_tag in "${API_FUNCTIONS[@]}"; do
     HANDLER_NAME=$(get_handler_name "$func_tag")
     echo -e "    • $func_tag ($HANDLER_NAME): ${GREEN}$ECR_REPO_URL:$func_tag-$IMAGE_TAG${NC}"

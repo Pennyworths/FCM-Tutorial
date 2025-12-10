@@ -1,0 +1,493 @@
+{
+  "version": 4,
+  "terraform_version": "1.13.5",
+  "serial": 42,
+  "lineage": "0ea7ec65-2129-2f93-c765-de9b945b3a69",
+  "outputs": {
+    "cluster_arn": {
+      "value": "arn:aws:rds:us-east-1:793438971099:cluster:dev-fcm-cluster",
+      "type": "string"
+    },
+    "cluster_identifier": {
+      "value": "dev-fcm-cluster",
+      "type": "string"
+    },
+    "cluster_reader_endpoint": {
+      "value": "dev-fcm-cluster.cluster-ro-cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+      "type": "string"
+    },
+    "db_password": {
+      "value": "your_db_password",
+      "type": "string",
+      "sensitive": true
+    },
+    "rds_db_name": {
+      "value": "fcmdb",
+      "type": "string"
+    },
+    "rds_endpoint": {
+      "value": "dev-fcm-cluster.cluster-cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+      "type": "string"
+    },
+    "rds_host": {
+      "value": "dev-fcm-cluster.cluster-cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+      "type": "string"
+    },
+    "rds_port": {
+      "value": 5432,
+      "type": "number"
+    },
+    "rds_security_group_id": {
+      "value": "sg-04d095b215f7b0e65",
+      "type": "string"
+    },
+    "rds_username": {
+      "value": "your_db_username",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "main",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 2,
+          "attributes": {
+            "address": "dev-postgres.cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+            "allocated_storage": 20,
+            "allow_major_version_upgrade": null,
+            "apply_immediately": false,
+            "arn": "arn:aws:rds:us-east-1:793438971099:db:dev-postgres",
+            "auto_minor_version_upgrade": true,
+            "availability_zone": "us-east-1b",
+            "backup_retention_period": 7,
+            "backup_target": "region",
+            "backup_window": "03:00-04:00",
+            "blue_green_update": [],
+            "ca_cert_identifier": "rds-ca-rsa2048-g1",
+            "character_set_name": "",
+            "copy_tags_to_snapshot": false,
+            "custom_iam_instance_profile": "",
+            "customer_owned_ip_enabled": false,
+            "database_insights_mode": "standard",
+            "db_name": "fcmdb",
+            "db_subnet_group_name": "dev-rds-subnet-group",
+            "dedicated_log_volume": false,
+            "delete_automated_backups": true,
+            "deletion_protection": true,
+            "domain": "",
+            "domain_auth_secret_arn": "",
+            "domain_dns_ips": [],
+            "domain_fqdn": "",
+            "domain_iam_role_name": "",
+            "domain_ou": "",
+            "enabled_cloudwatch_logs_exports": [
+              "postgresql",
+              "upgrade"
+            ],
+            "endpoint": "dev-postgres.cafyam8yqaxa.us-east-1.rds.amazonaws.com:5432",
+            "engine": "postgres",
+            "engine_lifecycle_support": "open-source-rds-extended-support",
+            "engine_version": "15",
+            "engine_version_actual": "15.14",
+            "final_snapshot_identifier": null,
+            "hosted_zone_id": "Z2R2ITUGPM61AM",
+            "iam_database_authentication_enabled": false,
+            "id": "db-PKQ6Q5HLSGEQFRR5TW7NPMXEAE",
+            "identifier": "dev-postgres",
+            "identifier_prefix": "",
+            "instance_class": "db.t3.micro",
+            "iops": 3000,
+            "kms_key_id": "arn:aws:kms:us-east-1:793438971099:key/af8fba73-ac84-454c-81fb-c930ccddad05",
+            "latest_restorable_time": "2025-12-10T00:09:35Z",
+            "license_model": "postgresql-license",
+            "listener_endpoint": [],
+            "maintenance_window": "mon:04:00-mon:05:00",
+            "manage_master_user_password": null,
+            "master_user_secret": [],
+            "master_user_secret_kms_key_id": null,
+            "max_allocated_storage": 100,
+            "monitoring_interval": 0,
+            "monitoring_role_arn": "",
+            "multi_az": false,
+            "nchar_character_set_name": "",
+            "network_type": "IPV4",
+            "option_group_name": "default:postgres-15",
+            "parameter_group_name": "default.postgres15",
+            "password": "your_db_password",
+            "password_wo": null,
+            "password_wo_version": null,
+            "performance_insights_enabled": false,
+            "performance_insights_kms_key_id": "",
+            "performance_insights_retention_period": 0,
+            "port": 5432,
+            "publicly_accessible": false,
+            "replica_mode": "",
+            "replicas": [],
+            "replicate_source_db": "",
+            "resource_id": "db-PKQ6Q5HLSGEQFRR5TW7NPMXEAE",
+            "restore_to_point_in_time": [],
+            "s3_import": [],
+            "skip_final_snapshot": false,
+            "snapshot_identifier": null,
+            "status": "available",
+            "storage_encrypted": true,
+            "storage_throughput": 125,
+            "storage_type": "gp3",
+            "tags": {
+              "Name": "dev-postgres"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-postgres",
+              "Project": "FCM",
+              "Purpose": "Database"
+            },
+            "timeouts": null,
+            "timezone": "",
+            "upgrade_storage_config": null,
+            "username": "your_db_username",
+            "vpc_security_group_ids": [
+              "sg-04d095b215f7b0e65"
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "password"
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "password_wo"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAwLCJkZWxldGUiOjM2MDAwMDAwMDAwMDAsInVwZGF0ZSI6NDgwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMiJ9",
+          "dependencies": [
+            "aws_db_subnet_group.main",
+            "aws_security_group.rds",
+            "random_password.db_password"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_db_subnet_group",
+      "name": "main",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "arn": "arn:aws:rds:us-east-1:793438971099:subgrp:dev-rds-subnet-group",
+            "description": "Managed by Terraform",
+            "id": "dev-rds-subnet-group",
+            "name": "dev-rds-subnet-group",
+            "name_prefix": "",
+            "subnet_ids": [
+              "subnet-0aaf0d0f4cb29cc72",
+              "subnet-0eb1ae2c99f148f2c"
+            ],
+            "supported_network_types": [
+              "IPV4"
+            ],
+            "tags": {
+              "Name": "dev-rds-subnet-group"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-rds-subnet-group",
+              "Project": "FCM",
+              "Purpose": "Database"
+            },
+            "vpc_id": "vpc-08686a79c661621a4"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "bnVsbA=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_rds_cluster",
+      "name": "main",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "allocated_storage": 1,
+            "allow_major_version_upgrade": null,
+            "apply_immediately": null,
+            "arn": "arn:aws:rds:us-east-1:793438971099:cluster:dev-fcm-cluster",
+            "availability_zones": [
+              "us-east-1a",
+              "us-east-1b",
+              "us-east-1d"
+            ],
+            "backtrack_window": 0,
+            "backup_retention_period": 7,
+            "ca_certificate_identifier": null,
+            "ca_certificate_valid_till": null,
+            "cluster_identifier": "dev-fcm-cluster",
+            "cluster_identifier_prefix": "",
+            "cluster_members": [
+              "dev-fcm-instance"
+            ],
+            "cluster_resource_id": "cluster-MPKRFZ5SLAUUCDYFIUCNEOID4U",
+            "cluster_scalability_type": "",
+            "copy_tags_to_snapshot": true,
+            "database_insights_mode": "standard",
+            "database_name": "fcmdb",
+            "db_cluster_instance_class": "",
+            "db_cluster_parameter_group_name": "default.aurora-postgresql15",
+            "db_instance_parameter_group_name": null,
+            "db_subnet_group_name": "dev-rds-subnet-group",
+            "db_system_id": "",
+            "delete_automated_backups": true,
+            "deletion_protection": false,
+            "domain": "",
+            "domain_iam_role_name": "",
+            "enable_global_write_forwarding": false,
+            "enable_http_endpoint": true,
+            "enable_local_write_forwarding": false,
+            "enabled_cloudwatch_logs_exports": [],
+            "endpoint": "dev-fcm-cluster.cluster-cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+            "engine": "aurora-postgresql",
+            "engine_lifecycle_support": "open-source-rds-extended-support",
+            "engine_mode": "provisioned",
+            "engine_version": "15",
+            "engine_version_actual": "15.12",
+            "final_snapshot_identifier": "dev-fcm-final-snapshot",
+            "global_cluster_identifier": "",
+            "hosted_zone_id": "Z2R2ITUGPM61AM",
+            "iam_database_authentication_enabled": false,
+            "iam_roles": [],
+            "id": "dev-fcm-cluster",
+            "iops": 0,
+            "kms_key_id": "arn:aws:kms:us-east-1:793438971099:key/af8fba73-ac84-454c-81fb-c930ccddad05",
+            "manage_master_user_password": null,
+            "master_password": "your_db_password",
+            "master_password_wo": null,
+            "master_password_wo_version": null,
+            "master_user_secret": [],
+            "master_user_secret_kms_key_id": null,
+            "master_username": "your_db_username",
+            "monitoring_interval": 0,
+            "monitoring_role_arn": "",
+            "network_type": "IPV4",
+            "performance_insights_enabled": false,
+            "performance_insights_kms_key_id": "",
+            "performance_insights_retention_period": 0,
+            "port": 5432,
+            "preferred_backup_window": "03:00-04:00",
+            "preferred_maintenance_window": "mon:04:00-mon:05:00",
+            "reader_endpoint": "dev-fcm-cluster.cluster-ro-cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+            "replication_source_identifier": "",
+            "restore_to_point_in_time": [],
+            "s3_import": [],
+            "scaling_configuration": [],
+            "serverlessv2_scaling_configuration": [
+              {
+                "max_capacity": 1,
+                "min_capacity": 0.5,
+                "seconds_until_auto_pause": 0
+              }
+            ],
+            "skip_final_snapshot": false,
+            "snapshot_identifier": null,
+            "source_region": null,
+            "storage_encrypted": true,
+            "storage_type": "",
+            "tags": {
+              "Name": "dev-FCM-aurora-cluster"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-FCM-aurora-cluster",
+              "Project": "FCM",
+              "Purpose": "Database"
+            },
+            "timeouts": null,
+            "vpc_security_group_ids": [
+              "sg-04d095b215f7b0e65"
+            ]
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "master_password"
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "master_password_wo"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo3MjAwMDAwMDAwMDAwLCJkZWxldGUiOjcyMDAwMDAwMDAwMDAsInVwZGF0ZSI6NzIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
+          "dependencies": [
+            "aws_db_subnet_group.main",
+            "aws_security_group.rds",
+            "random_password.db_password"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_rds_cluster_instance",
+      "name": "main",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "apply_immediately": null,
+            "arn": "arn:aws:rds:us-east-1:793438971099:db:dev-fcm-instance",
+            "auto_minor_version_upgrade": false,
+            "availability_zone": "us-east-1b",
+            "ca_cert_identifier": "rds-ca-rsa2048-g1",
+            "cluster_identifier": "dev-fcm-cluster",
+            "copy_tags_to_snapshot": false,
+            "custom_iam_instance_profile": "",
+            "db_parameter_group_name": "default.aurora-postgresql15",
+            "db_subnet_group_name": "dev-rds-subnet-group",
+            "dbi_resource_id": "db-T6V3IWTDUB4FE73UZ2YSCC2CGQ",
+            "endpoint": "dev-fcm-instance.cafyam8yqaxa.us-east-1.rds.amazonaws.com",
+            "engine": "aurora-postgresql",
+            "engine_version": "15",
+            "engine_version_actual": "15.12",
+            "force_destroy": false,
+            "id": "dev-fcm-instance",
+            "identifier": "dev-fcm-instance",
+            "identifier_prefix": "",
+            "instance_class": "db.serverless",
+            "kms_key_id": "arn:aws:kms:us-east-1:793438971099:key/af8fba73-ac84-454c-81fb-c930ccddad05",
+            "monitoring_interval": 0,
+            "monitoring_role_arn": "",
+            "network_type": "IPV4",
+            "performance_insights_enabled": false,
+            "performance_insights_kms_key_id": "",
+            "performance_insights_retention_period": 0,
+            "port": 5432,
+            "preferred_backup_window": "03:00-04:00",
+            "preferred_maintenance_window": "tue:05:32-tue:06:02",
+            "promotion_tier": 0,
+            "publicly_accessible": false,
+            "storage_encrypted": true,
+            "tags": {
+              "Name": "dev-FCM-aurora-instance"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-FCM-aurora-instance",
+              "Project": "FCM",
+              "Purpose": "Database"
+            },
+            "timeouts": null,
+            "writer": true
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo1NDAwMDAwMDAwMDAwLCJkZWxldGUiOjU0MDAwMDAwMDAwMDAsInVwZGF0ZSI6NTQwMDAwMDAwMDAwMH19",
+          "dependencies": [
+            "aws_db_subnet_group.main",
+            "aws_rds_cluster.main",
+            "aws_security_group.rds",
+            "random_password.db_password"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "rds",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 1,
+          "attributes": {
+            "arn": "arn:aws:ec2:us-east-1:793438971099:security-group/sg-04d095b215f7b0e65",
+            "description": "Security group for RDS, allows access from Lambda",
+            "egress": [
+              {
+                "cidr_blocks": [
+                  "0.0.0.0/0"
+                ],
+                "description": "Allow all outbound",
+                "from_port": 0,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "-1",
+                "security_groups": [],
+                "self": false,
+                "to_port": 0
+              }
+            ],
+            "id": "sg-04d095b215f7b0e65",
+            "ingress": [
+              {
+                "cidr_blocks": [],
+                "description": "PostgreSQL from Lambda",
+                "from_port": 5432,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [
+                  "sg-0f27391253a9b8581"
+                ],
+                "self": false,
+                "to_port": 5432
+              }
+            ],
+            "name": "dev-rds-sg",
+            "name_prefix": "",
+            "owner_id": "793438971099",
+            "revoke_rules_on_delete": false,
+            "tags": {
+              "Name": "dev-rds-sg"
+            },
+            "tags_all": {
+              "Environment": "dev",
+              "ManagedBy": "Terraform",
+              "Name": "dev-rds-sg",
+              "Project": "FCM",
+              "Purpose": "Database"
+            },
+            "timeouts": null,
+            "vpc_id": "vpc-08686a79c661621a4"
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6OTAwMDAwMDAwMDAwfSwic2NoZW1hX3ZlcnNpb24iOiIxIn0="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "random_password",
+      "name": "db_password",
+      "provider": "provider[\"registry.terraform.io/hashicorp/random\"]",
+      "instances": []
+    }
+  ],
+  "check_results": null
+}

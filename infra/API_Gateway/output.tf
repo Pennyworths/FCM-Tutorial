@@ -8,6 +8,11 @@ output "endpoint_messages_send" {
   value       = "https://${aws_api_gateway_rest_api.fcm_api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.fcm_stage.stage_name}/messages/send"
 }
 
+output "endpoint_messages_ack" {
+  description = "POST /messages/ack"
+  value       = "https://${aws_api_gateway_rest_api.fcm_api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.fcm_stage.stage_name}/messages/ack"
+}
+
 output "endpoint_test_ack" {
   description = "POST /test/ack"
   value       = "https://${aws_api_gateway_rest_api.fcm_api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.fcm_stage.stage_name}/test/ack"

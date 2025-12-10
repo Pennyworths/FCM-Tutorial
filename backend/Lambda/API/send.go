@@ -70,10 +70,13 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 	}
 
 	// If data.type == "e2e_test" and data.nonce is present, insert into test_runs
+	// Otherwise, automatically acknowledge the message (for non-e2e_test messages)
+	isE2ETest := false
 	if len(sendMessageRequest.Data) > 0 {
 		var dataMap map[string]interface{}
 		if err := json.Unmarshal(sendMessageRequest.Data, &dataMap); err == nil {
 			if dataType, ok := dataMap["type"].(string); ok && dataType == "e2e_test" {
+				isE2ETest = true
 				if nonce, ok := dataMap["nonce"].(string); ok && nonce != "" {
 					// Insert test run record
 					err = queries.CreateTestRun(ctx, sqlc.CreateTestRunParams{
@@ -87,6 +90,33 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 						logger.Info(ctx, "Created test run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
 					}
 				}
+			}
+		}
+	}
+
+	// For non-e2e_test messages, create test run record and automatically acknowledge
+	if !isE2ETest && len(devices) > 0 {
+		// Generate a nonce for the message (similar to e2e_test)
+		nonce := fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
+
+		// Insert test run record (reusing test_runs table for message tracking)
+		err = queries.CreateTestRun(ctx, sqlc.CreateTestRunParams{
+			Nonce:  nonce,
+			UserID: sendMessageRequest.UserID,
+		})
+		if err != nil {
+			logger.Error(ctx, err, "Failed to create message run record")
+			// Don't fail the request if test run creation fails, just log it
+		} else {
+			logger.Info(ctx, "Created message run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
+
+			// Automatically acknowledge the message (update status to ACKED)
+			_, err = queries.AckTestRun(ctx, nonce)
+			if err != nil {
+				logger.Error(ctx, err, "Failed to acknowledge message run: nonce=%s", nonce)
+				// Don't fail the request if ack fails, just log it
+			} else {
+				logger.Info(ctx, "Message automatically acknowledged: nonce=%s", nonce)
 			}
 		}
 	}

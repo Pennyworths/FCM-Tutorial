@@ -15,6 +15,8 @@ func main() {
 		lambda.Start(SendMessageHandler)
 	case "TestAckHandler", "ack":
 		lambda.Start(TestAckHandler)
+	case "MessageAckHandler", "message-ack":
+		lambda.Start(MessageAckHandler)
 	case "TestStatusHandler", "status":
 		lambda.Start(TestStatusHandler)
 	case "RegisterDeviceHandler", "register", "":

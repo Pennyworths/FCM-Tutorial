@@ -391,7 +391,7 @@ if [ "$SKIP_LAMBDAS" = false ]; then
     
     # Create placeholder images for all Lambda functions
     # IMAGE_TAG is already set from environment or command line
-    FUNCTIONS=("register-device" "send-message" "test-ack" "test-status")
+    FUNCTIONS=("register-device" "send-message" "test-ack" "test-status" "message-ack")
     
     echo -e "${BLUE}Creating placeholder images...${NC}"
     PLACEHOLDER_DOCKERFILE=$(mktemp)
@@ -447,6 +447,8 @@ EOF
     TEST_ACK_NAME=$(terraform output -raw test_ack_function_name)
     TEST_STATUS_ARN=$(terraform output -raw test_status_function_arn)
     TEST_STATUS_NAME=$(terraform output -raw test_status_function_name)
+    MESSAGE_ACK_ARN=$(terraform output -raw message_ack_function_arn)
+    MESSAGE_ACK_NAME=$(terraform output -raw message_ack_function_name)
     
     echo -e "${GREEN}Lambda Functions deployed successfully!${NC}"
     echo -e "${GREEN}Lambda Outputs:${NC}"
@@ -454,6 +456,7 @@ EOF
     echo -e "  Send Message ARN: $SEND_MESSAGE_ARN"
     echo -e "  Test Ack ARN: $TEST_ACK_ARN"
     echo -e "  Test Status ARN: $TEST_STATUS_ARN"
+    echo -e "  Message Ack ARN: $MESSAGE_ACK_ARN"
     echo -e "  ECR Repository: $ECR_REPO_URL"
     
     # Update Lambda functions to use latest images (if they exist in ECR)
@@ -467,6 +470,7 @@ EOF
         "send-message:$SEND_MESSAGE_NAME"
         "test-ack:$TEST_ACK_NAME"
         "test-status:$TEST_STATUS_NAME"
+        "message-ack:$MESSAGE_ACK_NAME"
     )
     
     for func_pair in "${FUNCTIONS[@]}"; do
@@ -528,7 +532,9 @@ if [ "$SKIP_API_GATEWAY" = false ] && [ "$SKIP_LAMBDAS" = false ]; then
             -var="test_ack_lambda_arn=$TEST_ACK_ARN" \
             -var="test_ack_lambda_name=$TEST_ACK_NAME" \
             -var="test_status_lambda_arn=$TEST_STATUS_ARN" \
-            -var="test_status_lambda_name=$TEST_STATUS_NAME"
+            -var="test_status_lambda_name=$TEST_STATUS_NAME" \
+            -var="message_ack_lambda_arn=$MESSAGE_ACK_ARN" \
+            -var="message_ack_lambda_name=$MESSAGE_ACK_NAME"
         
         # Get API Gateway output
         cd "$PROJECT_ROOT/infra/API_Gateway"
