@@ -123,7 +123,31 @@ deploy-lambdas: init-lambdas ## Deploy Lambda functions only (requires VPC, RDS,
 deploy-api-gateway: init-api-gateway ## Deploy API Gateway only (requires Lambdas)
 	@echo "$(BLUE)Deploying API Gateway...$(NC)"
 	@echo "$(YELLOW)Note: Lambda functions must be deployed first$(NC)"
-	@$(LOAD_ENV) cd API_Gateway && terraform apply $(TF_AUTO_APPROVE)
+	@echo "$(BLUE)Getting Lambda function ARNs from Lambdas module...$(NC)"
+	@$(LOAD_ENV) \
+	cd Lambdas && \
+	REGISTER_ARN=$$(terraform output -raw register_device_function_arn 2>/dev/null || echo "") && \
+	REGISTER_NAME=$$(terraform output -raw register_device_function_name 2>/dev/null || echo "") && \
+	SEND_ARN=$$(terraform output -raw send_message_function_arn 2>/dev/null || echo "") && \
+	SEND_NAME=$$(terraform output -raw send_message_function_name 2>/dev/null || echo "") && \
+	TEST_ACK_ARN=$$(terraform output -raw test_ack_function_arn 2>/dev/null || echo "") && \
+	TEST_ACK_NAME=$$(terraform output -raw test_ack_function_name 2>/dev/null || echo "") && \
+	TEST_STATUS_ARN=$$(terraform output -raw test_status_function_arn 2>/dev/null || echo "") && \
+	TEST_STATUS_NAME=$$(terraform output -raw test_status_function_name 2>/dev/null || echo "") && \
+	MESSAGE_ACK_ARN=$$(terraform output -raw message_ack_function_arn 2>/dev/null || echo "") && \
+	MESSAGE_ACK_NAME=$$(terraform output -raw message_ack_function_name 2>/dev/null || echo "") && \
+	cd ../API_Gateway && \
+	terraform apply $(TF_AUTO_APPROVE) \
+		-var="register_device_lambda_arn=$$REGISTER_ARN" \
+		-var="register_device_lambda_name=$$REGISTER_NAME" \
+		-var="send_message_lambda_arn=$$SEND_ARN" \
+		-var="send_message_lambda_name=$$SEND_NAME" \
+		-var="test_ack_lambda_arn=$$TEST_ACK_ARN" \
+		-var="test_ack_lambda_name=$$TEST_ACK_NAME" \
+		-var="test_status_lambda_arn=$$TEST_STATUS_ARN" \
+		-var="test_status_lambda_name=$$TEST_STATUS_NAME" \
+		-var="message_ack_lambda_arn=$$MESSAGE_ACK_ARN" \
+		-var="message_ack_lambda_name=$$MESSAGE_ACK_NAME"
 	@echo "$(GREEN)✓ API Gateway deployed$(NC)"
 
 deploy-migrations: init-migrations ## Deploy Migration infrastructure only (requires VPC, RDS, Secrets)
