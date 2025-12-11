@@ -13,8 +13,11 @@ type Querier interface {
 	CreateTestRun(ctx context.Context, arg CreateTestRunParams) error
 	GetDeviceByDeviceID(ctx context.Context, deviceID string) (GetDeviceByDeviceIDRow, error)
 	GetTestRunByNonce(ctx context.Context, nonce string) (TestRun, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByUserID(ctx context.Context, userID string) (User, error)
 	ListActiveDevicesByPlatforms(ctx context.Context, userID string) ([]ListActiveDevicesByPlatformsRow, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
+	UpsertUserByEmail(ctx context.Context, arg UpsertUserByEmailParams) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)

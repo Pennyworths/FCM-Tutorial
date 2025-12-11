@@ -35,3 +35,29 @@ SELECT nonce, user_id, status, created_at, acked_at
 FROM test_runs
 WHERE nonce = $1
 LIMIT 1;
+
+-- name: GetUserByEmail :one
+SELECT user_id, email, created_at, updated_at
+FROM users
+WHERE email = $1
+LIMIT 1;
+
+-- name: GetUserByUserID :one
+SELECT user_id, email, created_at, updated_at
+FROM users
+WHERE user_id = $1
+LIMIT 1;
+
+-- name: UpsertUserByEmail :one
+INSERT INTO users (user_id, email, created_at, updated_at)
+VALUES (
+    -- Generate user_id: use email hash (will be generated in Go code)
+    $2,  -- user_id (passed as second parameter)
+    $1,  -- email
+    NOW(),
+    NOW()
+)
+ON CONFLICT (email)
+DO UPDATE SET
+    updated_at = NOW()
+RETURNING user_id, email, created_at, updated_at;

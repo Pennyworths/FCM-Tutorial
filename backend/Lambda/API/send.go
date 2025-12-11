@@ -69,6 +69,36 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		}
 	}
 
+	// Send Klaviyo event after successful FCM message send
+	// Get user email from user_id
+	var userEmail string
+	user, err := queries.GetUserByUserID(ctx, sendMessageRequest.UserID)
+	if err == nil {
+		userEmail = user.Email
+		logger.Info(ctx, "Found user email: user_id=%s, email=%s", sendMessageRequest.UserID, userEmail)
+	} else {
+		// If user not found, log warning but don't fail (user might not have email registered)
+		logger.Info(ctx, "User not found in users table: user_id=%s, skipping Klaviyo event", sendMessageRequest.UserID)
+	}
+
+	// Send Klaviyo event if we have user email
+	if userEmail != "" {
+		klaviyoProperties := map[string]interface{}{
+			"title": sendMessageRequest.Title,
+			"body":  sendMessageRequest.Body,
+		}
+		
+		klaviyoSuccess, err := common.SendKlaviyoEventWithMetric(ctx, userEmail, "repayment_reminder", klaviyoProperties)
+		if err != nil {
+			logger.Error(ctx, err, "Failed to send Klaviyo event")
+			// Don't fail the request if Klaviyo fails, just log it (FCM message already sent)
+		} else if klaviyoSuccess {
+			logger.Info(ctx, "Klaviyo event sent successfully: email=%s, metric=repayment_reminder", userEmail)
+		} else {
+			logger.Info(ctx, "Klaviyo event returned failure: email=%s", userEmail)
+		}
+	}
+
 	// If data.type == "e2e_test" and data.nonce is present, insert into test_runs
 	if len(sendMessageRequest.Data) > 0 {
 		var dataMap map[string]interface{}

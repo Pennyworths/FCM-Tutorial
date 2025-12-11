@@ -97,6 +97,44 @@ func (q *Queries) GetTestRunByNonce(ctx context.Context, nonce string) (TestRun,
 	return i, err
 }
 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT user_id, email, created_at, updated_at
+FROM users
+WHERE email = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByUserID = `-- name: GetUserByUserID :one
+SELECT user_id, email, created_at, updated_at
+FROM users
+WHERE user_id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUserByUserID(ctx context.Context, userID string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUserID, userID)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listActiveDevicesByPlatforms = `-- name: ListActiveDevicesByPlatforms :many
 SELECT user_id, device_id, platform, fcm_token, is_active, updated_at
 FROM devices
@@ -164,4 +202,36 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) erro
 		arg.FcmToken,
 	)
 	return err
+}
+
+const upsertUserByEmail = `-- name: UpsertUserByEmail :one
+INSERT INTO users (user_id, email, created_at, updated_at)
+VALUES (
+    -- Generate user_id: use email hash (will be generated in Go code)
+    $2,  -- user_id (passed as second parameter)
+    $1,  -- email
+    NOW(),
+    NOW()
+)
+ON CONFLICT (email)
+DO UPDATE SET
+    updated_at = NOW()
+RETURNING user_id, email, created_at, updated_at
+`
+
+type UpsertUserByEmailParams struct {
+	Email  string `json:"email"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) UpsertUserByEmail(ctx context.Context, arg UpsertUserByEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, upsertUserByEmail, arg.Email, arg.UserID)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

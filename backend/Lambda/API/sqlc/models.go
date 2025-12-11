@@ -25,3 +25,10 @@ type TestRun struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	AckedAt   pgtype.Timestamptz `json:"acked_at"`
 }
+
+type User struct {
+	UserID    string             `json:"user_id"`
+	Email     string             `json:"email"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
