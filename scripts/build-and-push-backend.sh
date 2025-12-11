@@ -155,6 +155,9 @@ get_handler_name() {
         "register-device")
             echo "RegisterDeviceHandler"
             ;;
+        "register-email")
+            echo "RegisterEmailHandler"
+            ;;
         "send-message")
             echo "SendMessageHandler"
             ;;
@@ -172,13 +175,14 @@ get_handler_name() {
 
 API_FUNCTIONS=(
     "register-device"
+    "register-email"
     "send-message"
     "test-ack"
     "test-status"
 )
 
 echo -e "${BLUE}===========================================${NC}"
-echo -e "${BLUE}Building API Functions (4 separate images)${NC}"
+echo -e "${BLUE}Building API Functions (5 separate images)${NC}"
 echo -e "${BLUE}===========================================${NC}\n"
 
 for func_tag in "${API_FUNCTIONS[@]}"; do

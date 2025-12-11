@@ -42,3 +42,10 @@ variable "rds_password" {
   default     = ""
 }
 
+variable "klaviyo_api_key" {
+  description = "Klaviyo API Key (sensitive). Can be set via TF_VAR_klaviyo_api_key or KLAVIYO_API_KEY environment variable"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+

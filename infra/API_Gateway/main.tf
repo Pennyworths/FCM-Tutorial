@@ -189,6 +189,48 @@ resource "aws_lambda_permission" "test_status_permission" {
   source_arn    = "${aws_api_gateway_rest_api.fcm_api.execution_arn}/*/*"
 }
 
+# /users
+resource "aws_api_gateway_resource" "users" {
+  rest_api_id = aws_api_gateway_rest_api.fcm_api.id
+  parent_id   = aws_api_gateway_rest_api.fcm_api.root_resource_id
+  path_part   = "users"
+}
+
+# /users/register
+resource "aws_api_gateway_resource" "users_register" {
+  rest_api_id = aws_api_gateway_rest_api.fcm_api.id
+  parent_id   = aws_api_gateway_resource.users.id
+  path_part   = "register"
+}
+
+# POST /users/register
+resource "aws_api_gateway_method" "users_register_post" {
+  rest_api_id   = aws_api_gateway_rest_api.fcm_api.id
+  resource_id   = aws_api_gateway_resource.users_register.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+# Lambda integration for POST /users/register
+resource "aws_api_gateway_integration" "users_register_integration" {
+  rest_api_id = aws_api_gateway_rest_api.fcm_api.id
+  resource_id = aws_api_gateway_resource.users_register.id
+  http_method = aws_api_gateway_method.users_register_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.register_email_lambda_arn}/invocations"
+}
+
+# Lambda permission for API Gateway to invoke register_email
+resource "aws_lambda_permission" "users_register_permission" {
+  statement_id  = "AllowAPIGatewayInvokeRegisterEmail"
+  action        = "lambda:InvokeFunction"
+  function_name = var.register_email_lambda_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.fcm_api.execution_arn}/*/*"
+}
+
 resource "aws_api_gateway_deployment" "fcm_deployment" {
   rest_api_id = aws_api_gateway_rest_api.fcm_api.id
 
@@ -198,10 +240,12 @@ resource "aws_api_gateway_deployment" "fcm_deployment" {
       aws_api_gateway_method.messages_send_post.id,
       aws_api_gateway_method.test_ack_post.id,
       aws_api_gateway_method.test_status_get.id,
+      aws_api_gateway_method.users_register_post.id,
       aws_api_gateway_integration.devices_register_integration.id,
       aws_api_gateway_integration.messages_send_integration.id,
       aws_api_gateway_integration.test_ack_integration.id,
       aws_api_gateway_integration.test_status_integration.id,
+      aws_api_gateway_integration.users_register_integration.id,
     ]))
   }
 

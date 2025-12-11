@@ -69,19 +69,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         Log.d(TAG, "$LOG_NEW_TOKEN$token")
 
-        // Save token for later use in UI and /devices/register
+        // Save token for later use in UI
+        // User will manually register via UI when ready
         FcmTokenStore.saveToken(this, token)
-        val userId = UserIdManager.getOrCreateUserId(applicationContext)
-        val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
-        val apiBaseUrl = BuildConfig.API_BASE_URL
-
-        DeviceRegister.registerDevice(
-            context = applicationContext,
-            userId = userId,
-            deviceId = deviceId,
-            fcmToken = token,
-            apiBaseUrl = apiBaseUrl
-        )
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

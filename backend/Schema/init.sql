@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS devices (
   UNIQUE (user_id, device_id)
 );
 
+-- Users table: stores user information
+CREATE TABLE IF NOT EXISTS users (
+  user_id     TEXT PRIMARY KEY,
+  email       TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Test runs table: tracks FCM message delivery status
 CREATE TABLE IF NOT EXISTS test_runs (
   nonce       TEXT PRIMARY KEY,

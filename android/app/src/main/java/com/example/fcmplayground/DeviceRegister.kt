@@ -13,7 +13,7 @@ object DeviceRegister {
     private const val HTTP_METHOD_POST = "POST"
     private const val HTTP_HEADER_CONTENT_TYPE = "Content-Type"
     private const val HTTP_CONTENT_TYPE_JSON = "application/json"
-    private const val JSON_KEY_USER_ID = "user_id"
+    private const val JSON_KEY_EMAIL = "email"
     private const val JSON_KEY_DEVICE_ID = "device_id"
     private const val JSON_KEY_FCM_TOKEN = "fcm_token"
     private const val JSON_KEY_PLATFORM = "platform"
@@ -22,12 +22,18 @@ object DeviceRegister {
     private const val CONNECTION_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 10_000
 
+    /**
+     * Register device using email-based registration API
+     * Uses /users/register endpoint which creates user from email and registers device
+     * @param onSuccess Callback called with user_id when registration succeeds
+     */
     fun registerDevice(
         context: Context,
-        userId: String,
+        email: String,
         deviceId: String,
         fcmToken: String,
-        apiBaseUrl: String
+        apiBaseUrl: String,
+        onSuccess: ((String) -> Unit)? = null
     ) {
         if (fcmToken.startsWith(MainActivity.FCM_TOKEN_NOT_PREFIX)) {
             Toast.makeText(
@@ -39,7 +45,7 @@ object DeviceRegister {
         }
 
         val jsonBody = JSONObject().apply {
-            put(JSON_KEY_USER_ID, userId)
+            put(JSON_KEY_EMAIL, email)
             put(JSON_KEY_DEVICE_ID, deviceId)
             put(JSON_KEY_FCM_TOKEN, fcmToken)
             put(JSON_KEY_PLATFORM, PLATFORM_ANDROID)
@@ -47,7 +53,7 @@ object DeviceRegister {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = URL("$apiBaseUrl${ApiRoutes.DEVICES_REGISTER}")
+                val url = URL("$apiBaseUrl${ApiRoutes.USERS_REGISTER}")
                 Log.d(TAG, "$HTTP_METHOD_POST $url body=$jsonBody")
 
                 val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -72,12 +78,38 @@ object DeviceRegister {
 
                 Log.d(TAG, "registerDevice HTTP $code, response=$responseText")
 
+                // Parse response to get user_id if available
+                var userId: String? = null
+                if (code == 200 && responseText.isNotEmpty()) {
+                    try {
+                        val responseJson = JSONObject(responseText)
+                        if (responseJson.has("user_id")) {
+                            userId = responseJson.getString("user_id")
+                            // Save user_id for future use
+                            UserIdManager.saveUserId(context, userId)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to parse response: ${e.message}")
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context.applicationContext,
-                        "registerDevice: HTTP $code",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (userId != null) {
+                        val message = "Registered: user_id=$userId"
+                        Toast.makeText(
+                            context.applicationContext,
+                            message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // Call success callback
+                        onSuccess?.invoke(userId)
+                    } else {
+                        Toast.makeText(
+                            context.applicationContext,
+                            "registerDevice: HTTP $code",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "registerDevice failed: ${e.javaClass.name}: ${e.message}", e)

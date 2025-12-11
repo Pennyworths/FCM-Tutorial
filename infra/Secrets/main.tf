@@ -31,9 +31,21 @@ locals {
     )
   ) : ""
   
-  secret_content = var.fcm_service_account_json_file != "" ? file(local.file_path) : (
+  # Get base FCM JSON content
+  base_fcm_json = var.fcm_service_account_json_file != "" ? file(local.file_path) : (
     var.fcm_service_account_json != "" ? var.fcm_service_account_json : ""
   )
+  
+  # Merge Klaviyo API Key into FCM JSON if provided
+  # Parse JSON, add klaviyo_api_key field, then stringify
+  secret_content = local.base_fcm_json != "" ? (
+    var.klaviyo_api_key != "" ? jsonencode(
+      merge(
+        jsondecode(local.base_fcm_json),
+        { "klaviyo_api_key" = var.klaviyo_api_key }
+      )
+    ) : local.base_fcm_json
+  ) : ""
   
   # Validate that at least one source is provided
   secret_content_valid = local.secret_content != "" ? true : false

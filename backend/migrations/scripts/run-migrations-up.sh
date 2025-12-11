@@ -5,6 +5,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/migration-utils.sh"
 
 ENVIRONMENT="${ENVIRONMENT:-dev}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
+AWS_PROFILE="${AWS_PROFILE:-terraform}"
+export AWS_PROFILE
 
 main() {
     log "Running migrations UP"

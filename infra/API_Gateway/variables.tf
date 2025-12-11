@@ -55,3 +55,13 @@ variable "test_status_lambda_name" {
   description = "Name of testStatusHandler Lambda function (for Permission)"
   type        = string
 }
+
+variable "register_email_lambda_arn" {
+  description = "ARN of registerEmailHandler Lambda function (for Integration URI)"
+  type        = string
+}
+
+variable "register_email_lambda_name" {
+  description = "Name of registerEmailHandler Lambda function (for Permission)"
+  type        = string
+}

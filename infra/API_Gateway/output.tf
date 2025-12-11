@@ -18,6 +18,11 @@ output "endpoint_test_status" {
   value       = "https://${aws_api_gateway_rest_api.fcm_api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.fcm_stage.stage_name}/test/status"
 }
 
+output "endpoint_users_register" {
+  description = "POST /users/register"
+  value       = "https://${aws_api_gateway_rest_api.fcm_api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.fcm_stage.stage_name}/users/register"
+}
+
 output "api_base_url" {
   description = "API Gateway base URL"
   value       = "https://${aws_api_gateway_rest_api.fcm_api.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.fcm_stage.stage_name}"

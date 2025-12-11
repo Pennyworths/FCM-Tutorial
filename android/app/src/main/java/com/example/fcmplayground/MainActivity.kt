@@ -18,9 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -75,8 +79,8 @@ class MainActivity : ComponentActivity() {
         // Request notification permission for Android 13+
         requestNotificationPermission()
 
-        // Get or create persistent user id (random UUID stored in SharedPreferences)
-        val userId = UserIdManager.getOrCreateUserId(this)
+        // Get or create persistent user id (may be updated after registration)
+        val initialUserId = UserIdManager.getOrCreateUserId(this)
 
         // persistent device id from SharedPreferences
         val deviceId = DeviceIdManager.getOrCreateDeviceId(this)
@@ -98,32 +102,13 @@ class MainActivity : ComponentActivity() {
             FcmTokenStore.saveToken(this, token)
         }
 
-        // Auto-register if token is available
-        FcmTokenStore.getToken(this)?.let { token ->
-            DeviceRegister.registerDevice(
-                context = this,
-                userId = userId,
-                deviceId = deviceId,
-                fcmToken = token,
-                apiBaseUrl = apiBaseUrl
-            )
-        }
-
         setContent {
             FcmplaygroundTheme {
                 MainScreen(
-                    userId = userId,
+                    initialUserId = initialUserId,
                     deviceId = deviceId,
                     apiBaseUrl = apiBaseUrl,
-                    onReRegisterClick = { latestFcmToken ->
-                        DeviceRegister.registerDevice(
-                            context = this,
-                            userId = userId,
-                            deviceId = deviceId,
-                            fcmToken = latestFcmToken,
-                            apiBaseUrl = apiBaseUrl
-                        )
-                    }
+                    context = this
                 )
             }
         }
@@ -134,10 +119,12 @@ class MainActivity : ComponentActivity() {
 private object MainScreenConstants {
     // UI Strings
     const val LABEL_USER_ID = "user_id: "
+    const val LABEL_EMAIL = "Email: "
     const val LABEL_DEVICE_ID = "device_id: "
     const val LABEL_FCM_TOKEN = "FCM token: "
     const val LABEL_API_BASE_URL = "API_BASE_URL: "
-    const val BUTTON_RE_REGISTER = "Re-register device"
+    const val BUTTON_REGISTER = "Register"
+    const val PLACEHOLDER_EMAIL = "Enter your email"
     
     // Dimensions
     val PADDING_SCREEN = 16.dp
@@ -151,14 +138,18 @@ private object MainScreenConstants {
 
 @Composable
 fun MainScreen(
-    userId: String,
+    initialUserId: String,
     deviceId: String,
     apiBaseUrl: String,
-    onReRegisterClick: (String) -> Unit,
+    context: android.content.Context,
 ) {
     // Subscribe to token flow - UI auto-updates when token changes
     val fcmToken by FcmTokenStore.tokenFlow.collectAsState()
     val displayToken = fcmToken ?: MainActivity.FCM_TOKEN_NOT_AVAILABLE
+
+    // State for email input and user_id display
+    var emailInput by remember { mutableStateOf("") }
+    var userId by remember { mutableStateOf(initialUserId) }
 
     Column(
         modifier = Modifier
@@ -177,12 +168,36 @@ fun MainScreen(
         Text("${MainScreenConstants.LABEL_API_BASE_URL}$apiBaseUrl", style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(MainScreenConstants.SPACING_MEDIUM))
 
+        // Email input field
+        TextField(
+            value = emailInput,
+            onValueChange = { emailInput = it },
+            label = { Text(MainScreenConstants.LABEL_EMAIL) },
+            placeholder = { Text(MainScreenConstants.PLACEHOLDER_EMAIL) },
+            singleLine = true
+        )
+        Spacer(Modifier.height(MainScreenConstants.SPACING_SMALL))
+
+        // Register button
         Button(
             onClick = {
-                onReRegisterClick(displayToken)
-            }
+                if (emailInput.isNotBlank() && displayToken != MainActivity.FCM_TOKEN_NOT_AVAILABLE) {
+                    DeviceRegister.registerDevice(
+                        context = context,
+                        email = emailInput.trim(),
+                        deviceId = deviceId,
+                        fcmToken = displayToken,
+                        apiBaseUrl = apiBaseUrl,
+                        onSuccess = { newUserId ->
+                            userId = newUserId
+                            EmailManager.setEmail(context, emailInput.trim())
+                        }
+                    )
+                }
+            },
+            enabled = emailInput.isNotBlank() && displayToken != MainActivity.FCM_TOKEN_NOT_AVAILABLE
         ) {
-            Text(MainScreenConstants.BUTTON_RE_REGISTER)
+            Text(MainScreenConstants.BUTTON_REGISTER)
         }
     }
 }
@@ -192,11 +207,12 @@ fun MainScreen(
 @Composable
 fun MainScreenPreview() {
     FcmplaygroundTheme {
-        MainScreen(
-            userId = "preview-user-id",
-            deviceId = MainScreenConstants.PREVIEW_DEVICE_ID,
-            apiBaseUrl = MainScreenConstants.PREVIEW_API_BASE_URL,
-            onReRegisterClick = {}
-        )
+        // Preview requires context, using a mock
+        // MainScreen(
+        //     initialUserId = "preview-user-id",
+        //     deviceId = MainScreenConstants.PREVIEW_DEVICE_ID,
+        //     apiBaseUrl = MainScreenConstants.PREVIEW_API_BASE_URL,
+        //     context = android.app.Application()
+        // )
     }
 }

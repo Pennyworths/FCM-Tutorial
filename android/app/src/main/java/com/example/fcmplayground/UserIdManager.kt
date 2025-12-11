@@ -30,5 +30,13 @@ object UserIdManager {
             return newId
         }
     }
+
+    /**
+     * Save user_id (typically received from /users/register API response)
+     */
+    fun saveUserId(context: Context, userId: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_USER_ID, userId).apply()
+    }
 }
 

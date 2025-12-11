@@ -33,7 +33,16 @@ check_prerequisites() {
     log "Checking prerequisites..."
     command -v aws &> /dev/null || { error "AWS CLI not installed"; exit 1; }
     command -v jq &> /dev/null || { error "jq not installed"; exit 1; }
-    aws sts get-caller-identity &> /dev/null || { error "AWS CLI not configured"; exit 1; }
+    
+    # Use AWS_PROFILE if set, otherwise use default
+    local aws_profile="${AWS_PROFILE:-terraform}"
+    export AWS_PROFILE="$aws_profile"
+    
+    # Check AWS credentials
+    if ! aws sts get-caller-identity &> /dev/null; then
+        error "AWS CLI not configured. Please run: aws sso login --profile $aws_profile"
+        exit 1
+    fi
     success "Prerequisites check passed"
 }
 

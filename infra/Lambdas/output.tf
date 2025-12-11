@@ -43,6 +43,16 @@ output "test_status_function_name" {
   value       = aws_lambda_function.test_status.function_name
 }
 
+output "register_email_function_arn" {
+  description = "ARN of registerEmailHandler Lambda function"
+  value       = aws_lambda_function.register_email.arn
+}
+
+output "register_email_function_name" {
+  description = "Name of registerEmailHandler Lambda function"
+  value       = aws_lambda_function.register_email.function_name
+}
+
 output "ecr_repository_url" {
   description = "ECR repository URL for Lambda container images"
   value       = aws_ecr_repository.lambda_images.repository_url

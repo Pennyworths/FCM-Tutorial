@@ -59,6 +59,11 @@ elif [ -f "$PROJECT_ROOT/service-account.json" ]; then
     export TF_VAR_fcm_service_account_json_file="$PROJECT_ROOT/service-account.json"
 fi
 
+# Klaviyo API Key (optional, will be merged into FCM secret if provided)
+if [ -n "$KLAVIYO_API_KEY" ]; then
+    export TF_VAR_klaviyo_api_key="$KLAVIYO_API_KEY"
+fi
+
 # Function to print usage
 usage() {
     echo -e "${YELLOW}Usage: $0 [OPTIONS]${NC}"
@@ -274,8 +279,13 @@ if [ -z "$TF_VAR_fcm_service_account_json" ] && [ -z "$TF_VAR_fcm_service_accoun
     exit 1
 fi
 
-terraform_apply "infra/Secrets" "Secrets Manager" \
-    -var="rds_password=$TF_VAR_rds_password"
+# Build terraform apply arguments
+SECRETS_TF_VARS=(-var="rds_password=$TF_VAR_rds_password")
+if [ -n "$TF_VAR_klaviyo_api_key" ]; then
+    SECRETS_TF_VARS+=(-var="klaviyo_api_key=$TF_VAR_klaviyo_api_key")
+fi
+
+terraform_apply "infra/Secrets" "Secrets Manager" "${SECRETS_TF_VARS[@]}"
 
 # Get Secrets outputs
 cd "$PROJECT_ROOT/infra/Secrets"
@@ -441,6 +451,8 @@ EOF
     # Get Lambda outputs
     REGISTER_DEVICE_ARN=$(terraform output -raw register_device_function_arn)
     REGISTER_DEVICE_NAME=$(terraform output -raw register_device_function_name)
+    REGISTER_EMAIL_ARN=$(terraform output -raw register_email_function_arn)
+    REGISTER_EMAIL_NAME=$(terraform output -raw register_email_function_name)
     SEND_MESSAGE_ARN=$(terraform output -raw send_message_function_arn)
     SEND_MESSAGE_NAME=$(terraform output -raw send_message_function_name)
     TEST_ACK_ARN=$(terraform output -raw test_ack_function_arn)
@@ -451,6 +463,7 @@ EOF
     echo -e "${GREEN}Lambda Functions deployed successfully!${NC}"
     echo -e "${GREEN}Lambda Outputs:${NC}"
     echo -e "  Register Device ARN: $REGISTER_DEVICE_ARN"
+    echo -e "  Register Email ARN: $REGISTER_EMAIL_ARN"
     echo -e "  Send Message ARN: $SEND_MESSAGE_ARN"
     echo -e "  Test Ack ARN: $TEST_ACK_ARN"
     echo -e "  Test Status ARN: $TEST_STATUS_ARN"
@@ -464,6 +477,7 @@ EOF
     
     FUNCTIONS=(
         "register-device:$REGISTER_DEVICE_NAME"
+        "register-email:$REGISTER_EMAIL_NAME"
         "send-message:$SEND_MESSAGE_NAME"
         "test-ack:$TEST_ACK_NAME"
         "test-status:$TEST_STATUS_NAME"
@@ -508,6 +522,8 @@ else
     echo -e "${YELLOW}Skipping Lambda deployment (--skip-lambdas flag set)${NC}"
     REGISTER_DEVICE_ARN=""
     REGISTER_DEVICE_NAME=""
+    REGISTER_EMAIL_ARN=""
+    REGISTER_EMAIL_NAME=""
     SEND_MESSAGE_ARN=""
     SEND_MESSAGE_NAME=""
     TEST_ACK_ARN=""
@@ -523,6 +539,8 @@ if [ "$SKIP_API_GATEWAY" = false ] && [ "$SKIP_LAMBDAS" = false ]; then
         terraform_apply "infra/API_Gateway" "API Gateway" \
             -var="register_device_lambda_arn=$REGISTER_DEVICE_ARN" \
             -var="register_device_lambda_name=$REGISTER_DEVICE_NAME" \
+            -var="register_email_lambda_arn=$REGISTER_EMAIL_ARN" \
+            -var="register_email_lambda_name=$REGISTER_EMAIL_NAME" \
             -var="send_message_lambda_arn=$SEND_MESSAGE_ARN" \
             -var="send_message_lambda_name=$SEND_MESSAGE_NAME" \
             -var="test_ack_lambda_arn=$TEST_ACK_ARN" \
