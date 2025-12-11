@@ -62,32 +62,45 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 	}
 
 	// Send message to each device
+	// Continue sending to other devices even if one fails
+	var sentCount int
+	var lastError error
 	for _, device := range devices {
 		err = sendMessageToDevice(ctx, device.FcmToken, sendMessageRequest.Title, sendMessageRequest.Body, sendMessageRequest.Data)
 		if err != nil {
-			return logger.InternalServerError(ctx, err, "Failed to send message to device")
+			logger.Error(ctx, err, "Failed to send message to device: device_id=%s", device.DeviceID)
+			lastError = err
+			// Continue to next device instead of returning immediately
+			continue
 		}
+		sentCount++
+		logger.Info(ctx, "Message sent successfully to device: device_id=%s", device.DeviceID)
+	}
+
+	// If no messages were sent successfully, return error
+	if sentCount == 0 {
+		if lastError != nil {
+			return logger.InternalServerError(ctx, lastError, "Failed to send message to all devices")
+		}
+		return logger.InternalServerError(ctx, nil, "No active devices found")
 	}
 
 	// Send Klaviyo event after successful FCM message send
 	// Get user email from user_id
-	var userEmail string
 	user, err := queries.GetUserByUserID(ctx, sendMessageRequest.UserID)
-	if err == nil {
-		userEmail = user.Email
-		logger.Info(ctx, "Found user email: user_id=%s, email=%s", sendMessageRequest.UserID, userEmail)
-	} else {
-		// If user not found, log warning but don't fail (user might not have email registered)
+	if err != nil {
 		logger.Info(ctx, "User not found in users table: user_id=%s, skipping Klaviyo event", sendMessageRequest.UserID)
 	}
 
 	// Send Klaviyo event if we have user email
-	if userEmail != "" {
+	if err == nil && user.Email != "" {
+		userEmail := user.Email
+		logger.Info(ctx, "Found user email: user_id=%s, email=%s", sendMessageRequest.UserID, userEmail)
 		klaviyoProperties := map[string]interface{}{
 			"title": sendMessageRequest.Title,
 			"body":  sendMessageRequest.Body,
 		}
-		
+
 		klaviyoSuccess, err := common.SendKlaviyoEventWithMetric(ctx, userEmail, "repayment_reminder", klaviyoProperties)
 		if err != nil {
 			logger.Error(ctx, err, "Failed to send Klaviyo event")

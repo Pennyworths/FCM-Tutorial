@@ -114,7 +114,7 @@ build-api: ## Build only API functions (register-device, send-message, test-ack,
 	fi
 	@ECR_REPO_URL=$$(cd $(INFRA_LAMBDAS_DIR) && terraform output -raw ecr_repository_url 2>/dev/null) \
 		IMAGE_TAG=$(IMAGE_TAG) AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
-		bash -c 'for func in register-device send-message test-ack test-status; do \
+		bash -c 'for func in register-device send-message test-ack test-delivered test-status; do \
 			echo "Building $$func..."; \
 			cd $(BACKEND_DIR) && docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false \
 				-f Lambda/API/Dockerfile -t $$ECR_REPO_URL:$$func-$(IMAGE_TAG) . || exit 1; \
@@ -152,7 +152,7 @@ generate-sqlc: generate-sqlc-api ## Generate SQL code for all functions
 clean: ## Remove local Docker images
 	@echo "$(BLUE)Cleaning up local Docker images...$(NC)"
 	@if [ -n "$$(docker images | grep -E '(register-device|send-message|test-ack|test-status)' | awk '{print $$3}')" ]; then \
-		docker rmi $$(docker images | grep -E '(register-device|send-message|test-ack|test-status)' | awk '{print $$3}') 2>/dev/null || true; \
+		 docker rmi $$(docker images | grep -E '(register-device|send-message|test-ack|test-status)' | awk '{print $$3}') 2>/dev/null || true; \
 		echo "$(GREEN)✓ Local images cleaned$(NC)"; \
 	else \
 		echo "$(YELLOW)No images to clean$(NC)"; \
