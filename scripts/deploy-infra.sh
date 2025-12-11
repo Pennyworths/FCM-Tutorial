@@ -473,7 +473,7 @@ EOF
         func_tag=$(echo "$func_pair" | cut -d: -f1)
         func_name=$(echo "$func_pair" | cut -d: -f2)
         
-        if [ -z "$func_name" ] || [ "$func_name" = "" ]; then
+        if [ -z "$func_name" ]; then
             continue
         fi
         

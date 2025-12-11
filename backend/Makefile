@@ -75,9 +75,9 @@ update-lambdas: ## Update Lambda functions to use latest images
 	fi; \
 	ECR_REPO_URL=$$(cd $(INFRA_LAMBDAS_DIR) && terraform output -raw ecr_repository_url 2>/dev/null) || \
 		(echo "$(RED)Error: Could not get ECR URL. Make sure infrastructure is deployed.$(NC)" && exit 1); \
-	REGION="$${AWS_REGION:-$(AWS_REGION):-us-east-1}"; \
-	PROFILE="$${AWS_PROFILE:-$(AWS_PROFILE):-terraform}"; \
-	ENV="$${AWS_environment:-$(AWS_environment):-dev}"; \
+	REGION="$${AWS_REGION:-us-east-1}"; \
+	PROFILE="$${AWS_PROFILE:-terraform}"; \
+	ENV="$${AWS_environment:-dev}"; \
 	echo "$(BLUE)Environment: $$ENV, Region: $$REGION, Profile: $$PROFILE$(NC)"; \
 	echo "$(BLUE)ECR Repository: $$ECR_REPO_URL$(NC)"; \
 	echo ""; \
