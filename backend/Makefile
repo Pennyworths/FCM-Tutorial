@@ -56,10 +56,7 @@ build: ## Build all Docker images locally (without pushing to ECR)
 		echo "$(BLUE)Building $$func...$(NC)"; \
 		docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false \
 			-f Lambda/API/Dockerfile -t $$ECR_REPO_URL:$$func-$(IMAGE_TAG) . || exit 1; \
-	done && \
-	echo "$(BLUE)Building init-schema...$(NC)" && \
-	docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false \
-		-f Lambda/init-schema/Dockerfile -t $$ECR_REPO_URL:init-schema-$(IMAGE_TAG) . || exit 1
+	done
 	@echo "$(GREEN)✓ All images built locally$(NC)"
 
 push: ## Build and push all images to ECR
@@ -84,7 +81,7 @@ update-lambdas: ## Update Lambda functions to use latest images
 	echo "$(BLUE)Environment: $$ENV, Region: $$REGION, Profile: $$PROFILE$(NC)"; \
 	echo "$(BLUE)ECR Repository: $$ECR_REPO_URL$(NC)"; \
 	echo ""; \
-	FUNCTIONS="register-device:registerDeviceHandler send-message:sendMessageHandler test-ack:testAckHandler test-status:testStatusHandler init-schema:initSchema"; \
+	FUNCTIONS="register-device:registerDeviceHandler send-message:sendMessageHandler test-ack:testAckHandler test-status:testStatusHandler"; \
 	for func_pair in $$FUNCTIONS; do \
 		func=$$(echo $$func_pair | cut -d: -f1); \
 		handler=$$(echo $$func_pair | cut -d: -f2); \
@@ -108,23 +105,6 @@ update-lambdas: ## Update Lambda functions to use latest images
 deploy: push update-lambdas ## Build and push all images to ECR, then update Lambda functions
 	@echo "$(GREEN)✓ Deployment complete!$(NC)"
 
-init-schema: ## Initialize database schema (REQUIRED after first deployment)
-	@echo "$(BLUE)Initializing database schema...$(NC)"
-	@if [ -f $(PROJECT_ROOT)/.env ]; then \
-		export $$(grep -v '^#' $(PROJECT_ROOT)/.env | xargs); \
-	fi; \
-	FUNCTION_NAME="$${AWS_environment:-dev}-initSchema"; \
-	REGION="$${AWS_REGION:-us-east-1}"; \
-	PROFILE="$${AWS_PROFILE:-terraform}"; \
-	aws lambda invoke \
-		--function-name "$$FUNCTION_NAME" \
-		--region "$$REGION" \
-		--profile "$$PROFILE" \
-		--payload '{}' \
-		/dev/stdout
-	@echo ""
-	@echo "$(GREEN)✓ Schema initialization complete$(NC)"
-
 # Individual function builds (for testing)
 build-api: ## Build only API functions (register-device, send-message, test-ack, test-status)
 	@echo "$(BLUE)Building API functions...$(NC)"
@@ -140,41 +120,24 @@ build-api: ## Build only API functions (register-device, send-message, test-ack,
 				-f Lambda/API/Dockerfile -t $$ECR_REPO_URL:$$func-$(IMAGE_TAG) . || exit 1; \
 		done'
 
-build-init-schema: ## Build only init-schema function
-	@echo "$(BLUE)Building init-schema function...$(NC)"
-	@if [ -z "$(ECR_REPO_URL)" ]; then \
-		ECR_REPO_URL=$$(cd $(INFRA_LAMBDAS_DIR) && terraform output -raw ecr_repository_url 2>/dev/null) || \
-		(echo "$(RED)Error: Could not get ECR URL$(NC)" && exit 1); \
-	fi
-	@ECR_REPO_URL=$$(cd $(INFRA_LAMBDAS_DIR) && terraform output -raw ecr_repository_url 2>/dev/null) \
-		cd $(BACKEND_DIR) && docker buildx build --platform linux/amd64 --load --provenance=false --sbom=false \
-		-f Lambda/init-schema/Dockerfile -t $$ECR_REPO_URL:init-schema-$(IMAGE_TAG) .
-
 # Testing commands
 test-api: ## Run tests for API functions
 	@echo "$(BLUE)Running API tests...$(NC)"
 	@cd Lambda/API && go test -v ./... || (echo "$(RED)Tests failed$(NC)" && exit 1)
 	@echo "$(GREEN)✓ API tests passed$(NC)"
 
-test-init-schema: ## Run tests for init-schema function
-	@echo "$(BLUE)Running init-schema tests...$(NC)"
-	@cd Lambda/init-schema && go test -v ./... || (echo "$(RED)Tests failed$(NC)" && exit 1)
-	@echo "$(GREEN)✓ init-schema tests passed$(NC)"
-
-test: test-api test-init-schema ## Run all tests
+test: test-api ## Run all tests
 
 # Code quality
 lint: ## Run linters on Go code
 	@echo "$(BLUE)Running linters...$(NC)"
 	@which golangci-lint > /dev/null || (echo "$(YELLOW)golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest$(NC)" && exit 1)
 	@cd Lambda/API && golangci-lint run || true
-	@cd Lambda/init-schema && golangci-lint run || true
 	@echo "$(GREEN)✓ Linting complete$(NC)"
 
 format: ## Format Go code
 	@echo "$(BLUE)Formatting Go code...$(NC)"
 	@cd Lambda/API && go fmt ./...
-	@cd Lambda/init-schema && go fmt ./...
 	@echo "$(GREEN)✓ Code formatted$(NC)"
 
 # SQL code generation
@@ -183,18 +146,13 @@ generate-sqlc-api: ## Generate SQL code for API functions
 	@cd Lambda/API && sqlc generate || (echo "$(RED)SQL code generation failed$(NC)" && exit 1)
 	@echo "$(GREEN)✓ SQL code generated for API$(NC)"
 
-generate-sqlc-init-schema: ## Generate SQL code for init-schema
-	@echo "$(BLUE)Generating SQL code for init-schema...$(NC)"
-	@cd Lambda/init-schema && sqlc generate || (echo "$(RED)SQL code generation failed$(NC)" && exit 1)
-	@echo "$(GREEN)✓ SQL code generated for init-schema$(NC)"
-
-generate-sqlc: generate-sqlc-api generate-sqlc-init-schema ## Generate SQL code for all functions
+generate-sqlc: generate-sqlc-api ## Generate SQL code for all functions
 
 # Cleanup
 clean: ## Remove local Docker images
 	@echo "$(BLUE)Cleaning up local Docker images...$(NC)"
-	@if [ -n "$$(docker images | grep -E '(register-device|send-message|test-ack|test-status|init-schema)' | awk '{print $$3}')" ]; then \
-		docker rmi $$(docker images | grep -E '(register-device|send-message|test-ack|test-status|init-schema)' | awk '{print $$3}') 2>/dev/null || true; \
+	@if [ -n "$$(docker images | grep -E '(register-device|send-message|test-ack|test-status)' | awk '{print $$3}')" ]; then \
+		docker rmi $$(docker images | grep -E '(register-device|send-message|test-ack|test-status)' | awk '{print $$3}') 2>/dev/null || true; \
 		echo "$(GREEN)✓ Local images cleaned$(NC)"; \
 	else \
 		echo "$(YELLOW)No images to clean$(NC)"; \

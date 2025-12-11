@@ -1,0 +1,39 @@
+# Docker Compose configuration for migrations
+
+x-common: &common
+  build:
+    context: .
+  environment:
+    AWS_PROFILE: ${AWS_PROFILE:-terraform}
+    AWS_REGION: ${AWS_REGION:-us-east-1}
+    ENVIRONMENT: ${ENVIRONMENT:-dev}
+    PROJECT_NAME: ${PROJECT_NAME:-FCM}
+  volumes:
+    - ${HOME}/.aws:/root/.aws:ro
+    - ./migrate:/migrations/migrate
+    - ./scripts:/migrations/scripts
+  working_dir: /migrations
+
+services:
+  migrations:
+    <<: *common
+    command: ["/bin/bash"]
+    stdin_open: true
+    tty: true
+
+  run-migrations:
+    <<: *common
+    command: ["bash", "./scripts/run-migrations-up.sh"]
+
+  connect-db:
+    <<: *common
+    command: ["bash", "./scripts/connect-to-db.sh"]
+
+  test-connection:
+    <<: *common
+    command: ["bash", "./scripts/test-rds-connection.sh"]
+
+  list-tables:
+    <<: *common
+    command: ["bash", "./scripts/list-tables.sh"]
+
