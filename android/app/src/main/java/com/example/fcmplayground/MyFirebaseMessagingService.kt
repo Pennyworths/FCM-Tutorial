@@ -110,14 +110,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             }
         } else {
             // Normal message: show system notification
-            showNotification(title, body)
+            // Pass nonce to notification so it can be sent ACK when user clicks
+            showNotification(title, body, nonce)
             
-            // Debug: log whether nonce is present
-            if (nonce.isNullOrBlank()) {
-                Log.d(TAG, "Regular message received but no nonce in data. Data keys: ${data.keys}")
-            } else {
+            // If app is in foreground, send ACK immediately
+            // If app is in background, ACK will be sent when user clicks notification (in MainActivity)
+            if (!nonce.isNullOrBlank()) {
                 Log.d(TAG, String.format(LOG_MSG_ACK, nonce, ApiRoutes.MESSAGES_ACK))
                 ackMessage(nonce, ApiRoutes.MESSAGES_ACK)
+            } else {
+                Log.d(TAG, "Regular message received but no nonce in data. Data keys: ${data.keys}")
             }
         }
     }
@@ -137,55 +139,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
      * @param endpoint The endpoint to call (either ApiRoutes.TEST_ACK or ApiRoutes.MESSAGES_ACK)
      */
     private fun ackMessage(nonce: String, endpoint: String) {
-        // Fire-and-forget background call
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val apiBaseUrl = BuildConfig.API_BASE_URL
-                val url = URL("$apiBaseUrl$endpoint")
-
-                val jsonBody = JSONObject().apply {
-                    put(JSON_KEY_NONCE, nonce)
-                }
-
-                Log.d(TAG, String.format(LOG_POST_REQUEST, url, jsonBody))
-
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = HTTP_METHOD_POST
-                    connectTimeout = CONNECT_TIMEOUT_MS
-                    readTimeout = READ_TIMEOUT_MS
-                    doOutput = true
-                    setRequestProperty(HTTP_HEADER_CONTENT_TYPE, HTTP_CONTENT_TYPE_JSON)
-                }
-
-                conn.outputStream.use { os ->
-                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
-                }
-
-                val code = conn.responseCode
-                val responseText = try {
-                    if (code >= HTTP_ERROR_CODE_THRESHOLD) {
-                        conn.errorStream?.bufferedReader()?.use { it.readText() } ?: DEFAULT_BODY
-                    } else {
-                        conn.inputStream.bufferedReader().use { it.readText() }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, LOG_READ_RESPONSE_ERROR, e)
-                    DEFAULT_BODY
-                }
-                conn.disconnect()
-
-                Log.d(TAG, String.format(LOG_ACK_RESPONSE, endpoint, code, responseText))
-            } catch (e: Exception) {
-                Log.e(TAG, String.format(LOG_ACK_FAILED, endpoint), e)
-            }
-        }
+        val apiBaseUrl = BuildConfig.API_BASE_URL
+        MessageAckHelper.sendAck(nonce, endpoint, apiBaseUrl)
     }
 
     /**
      * Show a system notification for normal messages.
      * Uses HIGH importance/priority to show heads-up notification (popup).
+     * @param title Notification title
+     * @param body Notification body
+     * @param nonce Optional nonce to include in notification click Intent (for ACK tracking)
      */
-    private fun showNotification(title: String, body: String) {
+    private fun showNotification(title: String, body: String, nonce: String? = null) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Create channel on Android O+ with HIGH importance for heads-up
@@ -198,12 +163,31 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             manager.createNotificationChannel(channel)
         }
 
+        // Create Intent for notification click - will open MainActivity
+        // FCM automatically includes data fields in Intent extras when app is in background
+        // But we also add nonce explicitly for when app is in foreground
+        val intent = android.content.Intent(this, MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+            // Add nonce to Intent so MainActivity can extract it and send ACK
+            if (!nonce.isNullOrBlank()) {
+                putExtra("nonce", nonce)
+            }
+        }
+
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)  // HIGH priority for heads-up
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)  // Set click action
             .build()
 
         // Use positive ID to avoid overwriting and conflicts

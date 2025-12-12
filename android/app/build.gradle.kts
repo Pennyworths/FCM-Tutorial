@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.analytics)
     implementation(libs.okhttp)
     implementation(libs.gson)
     testImplementation(libs.junit)

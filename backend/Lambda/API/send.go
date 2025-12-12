@@ -86,14 +86,14 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 	if !isE2ETest && len(devices) > 0 {
 		// Generate nonce (same format as e2e_test uses)
 		nonce = fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
-		
+
 		// Parse existing data or create new map
 		if dataMap == nil {
 			dataMap = make(map[string]interface{})
 		}
 		// Add nonce to data so Android can receive it (e2e_test already has this)
 		dataMap["nonce"] = nonce
-		
+
 		// Marshal back to json.RawMessage for FCM
 		finalData, err = json.Marshal(dataMap)
 		if err != nil {
@@ -168,12 +168,33 @@ func sendMessageToDevice(ctx context.Context, fcmToken string, title string, bod
 				"title": title,
 				"body":  body,
 			},
+			// Android-specific configuration
+			"android": map[string]interface{}{
+				"priority": "high", // Valid values: "normal" or "high"
+			},
+			// iOS-specific configuration
+			"apns": map[string]interface{}{
+				"headers": map[string]interface{}{
+					"apns-priority": "10", // Valid values: "5" (normal) or "10" (high)
+				},
+			},
 		},
 	}
 
-	// Add data if provided
+	// Add analytics_label if we have message type (for tracking)
+	// This helps Firebase Analytics track message delivery
 	if len(dataMap) > 0 {
+		if msgType, ok := dataMap["type"]; ok && msgType != "" {
+			message["message"].(map[string]interface{})["fcm_options"] = map[string]interface{}{
+				"analytics_label": fmt.Sprintf("msg_%s", msgType),
+			}
+		}
 		message["message"].(map[string]interface{})["data"] = dataMap
+	} else {
+		// Default analytics label for regular messages
+		message["message"].(map[string]interface{})["fcm_options"] = map[string]interface{}{
+			"analytics_label": "msg_regular",
+		}
 	}
 
 	// Marshal request body

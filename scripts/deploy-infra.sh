@@ -345,13 +345,21 @@ if [ "$SKIP_LAMBDAS" = false ]; then
     
     echo -e "${GREEN}ECR Repository: $ECR_REPO_URL${NC}"
     
-    # Extract region from ECR URL if REGION is not set correctly
+    # Extract region from ECR URL and validate consistency
     # ECR URL format: <account>.dkr.ecr.<region>.amazonaws.com
     if [[ "$ECR_REPO_URL" =~ \.dkr\.ecr\.([^.]+)\.amazonaws\.com ]]; then
         ECR_REGION="${BASH_REMATCH[1]}"
         if [ "$ECR_REGION" != "$REGION" ]; then
-            echo -e "${YELLOW}Warning: ECR region ($ECR_REGION) differs from configured region ($REGION). Using ECR region.${NC}"
-            REGION="$ECR_REGION"
+            echo -e "${RED}Error: ECR region mismatch!${NC}"
+            echo -e "${RED}  Configured region: $REGION${NC}"
+            echo -e "${RED}  ECR repository region: $ECR_REGION${NC}"
+            echo -e "${YELLOW}This usually means:${NC}"
+            echo -e "${YELLOW}  1. ECR repository is in a different region than your configuration${NC}"
+            echo -e "${YELLOW}  2. Or you need to update AWS_REGION in .env to match ECR region${NC}"
+            echo -e "${YELLOW}Solution:${NC}"
+            echo -e "${YELLOW}  Update .env: AWS_REGION=$ECR_REGION${NC}"
+            echo -e "${YELLOW}  Or deploy ECR repository to region: $REGION${NC}"
+            exit 1
         fi
     fi
     

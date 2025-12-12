@@ -109,13 +109,19 @@ echo -e "  AWS Profile: ${GREEN}$AWS_PROFILE${NC}"
 echo -e "  Backend Directory: ${GREEN}$BACKEND_DIR${NC}"
 echo ""
 
-# Extract region from ECR URL if REGION is not set correctly
+# Extract region from ECR URL and validate consistency
 # ECR URL format: <account>.dkr.ecr.<region>.amazonaws.com
 if [[ "$ECR_REPO_URL" =~ \.dkr\.ecr\.([^.]+)\.amazonaws\.com ]]; then
     ECR_REGION="${BASH_REMATCH[1]}"
     if [ "$ECR_REGION" != "$REGION" ]; then
-        echo -e "${YELLOW}Warning: ECR region ($ECR_REGION) differs from configured region ($REGION). Using ECR region.${NC}"
-        REGION="$ECR_REGION"
+        echo -e "${RED}Error: ECR region mismatch!${NC}"
+        echo -e "${RED}  Configured region: $REGION${NC}"
+        echo -e "${RED}  ECR repository region: $ECR_REGION${NC}"
+        echo -e "${YELLOW}ECR and infrastructure must be in the same region.${NC}"
+        echo -e "${YELLOW}Solution:${NC}"
+        echo -e "${YELLOW}  Update .env or environment: AWS_REGION=$ECR_REGION${NC}"
+        echo -e "${YELLOW}  Or use --region $ECR_REGION flag${NC}"
+        exit 1
     fi
 fi
 
