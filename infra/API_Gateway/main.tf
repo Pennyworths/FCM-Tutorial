@@ -230,14 +230,14 @@ resource "aws_api_gateway_deployment" "fcm_deployment" {
     redeploy_hash = sha1(jsonencode([
       aws_api_gateway_method.devices_register_post.id,
       aws_api_gateway_method.messages_send_post.id,
-      aws_api_gateway_method.messages_ack_post.id,
       aws_api_gateway_method.test_ack_post.id,
       aws_api_gateway_method.test_status_get.id,
       aws_api_gateway_integration.devices_register_integration.id,
       aws_api_gateway_integration.messages_send_integration.id,
-      aws_api_gateway_integration.messages_ack_integration.id,
       aws_api_gateway_integration.test_ack_integration.id,
       aws_api_gateway_integration.test_status_integration.id,
+      aws_api_gateway_method.messages_ack_post.id,
+      aws_api_gateway_integration.messages_ack_integration.id,
     ]))
   }
 

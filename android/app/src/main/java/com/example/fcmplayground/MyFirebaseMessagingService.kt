@@ -119,7 +119,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 Log.d(TAG, String.format(LOG_MSG_ACK, nonce, ApiRoutes.MESSAGES_ACK))
                 ackMessage(nonce, ApiRoutes.MESSAGES_ACK)
             } else {
-                Log.d(TAG, "Regular message received but no nonce in data. Data keys: ${data.keys}")
+                Log.w(TAG, "Regular message received without nonce. This is unexpected. Data keys: ${data.keys}")
             }
         }
     }

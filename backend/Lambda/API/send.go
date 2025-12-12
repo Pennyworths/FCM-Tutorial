@@ -80,24 +80,34 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		}
 	}
 
-	// For non-e2e_test messages: generate nonce and add to data (same as e2e_test)
-	// This ensures Android receives nonce in FCM message data and can call /messages/ack
+	// Prepare final data for FCM
+	// FCM requires all data field values to be strings, so we normalize the data
+	// For non-e2e_test messages: generate nonce and add to data
 	var finalData json.RawMessage = sendMessageRequest.Data
-	if !isE2ETest && len(devices) > 0 {
-		// Generate nonce (same format as e2e_test uses)
-		nonce = fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
-
-		// Parse existing data or create new map
-		if dataMap == nil {
-			dataMap = make(map[string]interface{})
+	if len(devices) > 0 {
+		// Convert all values to strings to ensure type consistency with sendMessageToDevice
+		// which expects map[string]string
+		stringDataMap := make(map[string]string)
+		
+		if dataMap != nil {
+			// Convert existing values to strings (handles numbers, booleans, etc.)
+			for k, v := range dataMap {
+				stringDataMap[k] = fmt.Sprintf("%v", v)
+			}
 		}
-		// Add nonce to data so Android can receive it (e2e_test already has this)
-		dataMap["nonce"] = nonce
-
-		// Marshal back to json.RawMessage for FCM
-		finalData, err = json.Marshal(dataMap)
-		if err != nil {
-			return logger.InternalServerError(ctx, err, "Failed to marshal data payload")
+		
+		if !isE2ETest {
+			// Generate nonce for regular messages (e2e_test already has nonce in data)
+			nonce = fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
+			stringDataMap["nonce"] = nonce
+		}
+		
+		// Marshal to json.RawMessage for FCM (only if we have data to send)
+		if len(stringDataMap) > 0 {
+			finalData, err = json.Marshal(stringDataMap)
+			if err != nil {
+				return logger.InternalServerError(ctx, err, "Failed to marshal data payload")
+			}
 		}
 	}
 
@@ -116,7 +126,7 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 			UserID: sendMessageRequest.UserID,
 		})
 		if err != nil {
-			logger.Error(ctx, err, "Failed to create test run record: nonce=%s", nonce)
+			logger.Error(ctx, err, "Failed to create test run record")
 			// Don't fail the request if test run creation fails, just log it
 		} else {
 			if isE2ETest {

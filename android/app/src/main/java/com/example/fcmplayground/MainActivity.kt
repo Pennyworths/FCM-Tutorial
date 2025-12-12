@@ -157,11 +157,14 @@ class MainActivity : ComponentActivity() {
         val extras = intent.extras ?: return
 
         // Extract nonce from Intent extras
-        // FCM puts data fields directly in Intent extras with original key names
-        // Try multiple possible key names for compatibility
+        // FCM puts data fields directly in Intent extras, but key format can vary:
+        // - "nonce": Standard key used with FCM HTTP v1 API (current implementation)
+        // - "gcm.nonce": Legacy format from older GCM/FCM HTTP API or some backend libraries
+        // - "fcm.nonce": Alternative format observed in some FCM versions
+        // We check all variants for maximum compatibility
         val nonce = extras.getString("nonce")
-            ?: extras.getString("gcm.nonce")  // Legacy FCM format
-            ?: extras.getString("fcm.nonce")   // Alternative format
+            ?: extras.getString("gcm.nonce")
+            ?: extras.getString("fcm.nonce")
             ?: null
 
         if (nonce.isNullOrBlank()) {
