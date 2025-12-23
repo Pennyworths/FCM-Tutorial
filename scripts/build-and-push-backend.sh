@@ -109,13 +109,19 @@ echo -e "  AWS Profile: ${GREEN}$AWS_PROFILE${NC}"
 echo -e "  Backend Directory: ${GREEN}$BACKEND_DIR${NC}"
 echo ""
 
-# Extract region from ECR URL if REGION is not set correctly
+# Extract region from ECR URL and validate consistency
 # ECR URL format: <account>.dkr.ecr.<region>.amazonaws.com
 if [[ "$ECR_REPO_URL" =~ \.dkr\.ecr\.([^.]+)\.amazonaws\.com ]]; then
     ECR_REGION="${BASH_REMATCH[1]}"
     if [ "$ECR_REGION" != "$REGION" ]; then
-        echo -e "${YELLOW}Warning: ECR region ($ECR_REGION) differs from configured region ($REGION). Using ECR region.${NC}"
-        REGION="$ECR_REGION"
+        echo -e "${RED}Error: ECR region mismatch!${NC}"
+        echo -e "${RED}  Configured region: $REGION${NC}"
+        echo -e "${RED}  ECR repository region: $ECR_REGION${NC}"
+        echo -e "${YELLOW}ECR and infrastructure must be in the same region.${NC}"
+        echo -e "${YELLOW}Solution:${NC}"
+        echo -e "${YELLOW}  Update .env or environment: AWS_REGION=$ECR_REGION${NC}"
+        echo -e "${YELLOW}  Or use --region $ECR_REGION flag${NC}"
+        exit 1
     fi
 fi
 
@@ -164,6 +170,9 @@ get_handler_name() {
         "test-status")
             echo "TestStatusHandler"
             ;;
+        "message-ack")
+            echo "MessageAckHandler"
+            ;;
         *)
             echo "RegisterDeviceHandler"  # default
             ;;
@@ -175,10 +184,11 @@ API_FUNCTIONS=(
     "send-message"
     "test-ack"
     "test-status"
+    "message-ack"
 )
 
 echo -e "${BLUE}===========================================${NC}"
-echo -e "${BLUE}Building API Functions (4 separate images)${NC}"
+echo -e "${BLUE}Building API Functions (5 separate images)${NC}"
 echo -e "${BLUE}===========================================${NC}\n"
 
 for func_tag in "${API_FUNCTIONS[@]}"; do
@@ -268,7 +278,7 @@ fi
 echo ""
 
 echo -e "${BLUE}Summary:${NC}"
-echo -e "  API Functions (4 separate images):"
+echo -e "  API Functions (5 separate images):"
 for func_tag in "${API_FUNCTIONS[@]}"; do
     HANDLER_NAME=$(get_handler_name "$func_tag")
     echo -e "    • $func_tag ($HANDLER_NAME): ${GREEN}$ECR_REPO_URL:$func_tag-$IMAGE_TAG${NC}"

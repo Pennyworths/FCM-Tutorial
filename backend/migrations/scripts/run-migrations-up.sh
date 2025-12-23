@@ -64,11 +64,11 @@ main() {
     fi
     
     if [[ -n "$output" && "$output" != "None" ]]; then
-        echo "$output"
+    echo "$output"
     fi
     
     if [[ "$status" == "Success" ]]; then
-        success "Migrations completed!"
+    success "Migrations completed!"
         exit 0
     else
         error "Migration command failed with status: $status"

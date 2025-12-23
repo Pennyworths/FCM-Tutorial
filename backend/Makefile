@@ -81,7 +81,7 @@ update-lambdas: ## Update Lambda functions to use latest images
 	echo "$(BLUE)Environment: $$ENV, Region: $$REGION, Profile: $$PROFILE$(NC)"; \
 	echo "$(BLUE)ECR Repository: $$ECR_REPO_URL$(NC)"; \
 	echo ""; \
-	FUNCTIONS="register-device:registerDeviceHandler send-message:sendMessageHandler test-ack:testAckHandler test-status:testStatusHandler"; \
+	FUNCTIONS="register-device:registerDeviceHandler send-message:sendMessageHandler test-ack:testAckHandler test-status:testStatusHandler message-ack:messageAckHandler"; \
 	for func_pair in $$FUNCTIONS; do \
 		func=$$(echo $$func_pair | cut -d: -f1); \
 		handler=$$(echo $$func_pair | cut -d: -f2); \

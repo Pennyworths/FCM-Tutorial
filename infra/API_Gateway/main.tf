@@ -111,6 +111,40 @@ resource "aws_lambda_permission" "messages_send_permission" {
   source_arn    = "${aws_api_gateway_rest_api.fcm_api.execution_arn}/*/*"
 }
 
+# /messages/ack
+resource "aws_api_gateway_resource" "messages_ack" {
+  rest_api_id = aws_api_gateway_rest_api.fcm_api.id
+  parent_id   = aws_api_gateway_resource.messages.id
+  path_part   = "ack"
+}
+
+# POST /messages/ack
+resource "aws_api_gateway_method" "messages_ack_post" {
+  rest_api_id   = aws_api_gateway_rest_api.fcm_api.id
+  resource_id   = aws_api_gateway_resource.messages_ack.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+# Lambda integration for POST /messages/ack
+resource "aws_api_gateway_integration" "messages_ack_integration" {
+  rest_api_id = aws_api_gateway_rest_api.fcm_api.id
+  resource_id = aws_api_gateway_resource.messages_ack.id
+  http_method = aws_api_gateway_method.messages_ack_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.message_ack_lambda_arn}/invocations"
+}
+
+# Lambda permission for API Gateway to invoke message_ack
+resource "aws_lambda_permission" "messages_ack_permission" {
+  statement_id  = "AllowAPIGatewayInvokeMessageAck"
+  action        = "lambda:InvokeFunction"
+  function_name = var.message_ack_lambda_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.fcm_api.execution_arn}/*/*"
+}
 
 # /test
 resource "aws_api_gateway_resource" "test" {
@@ -202,6 +236,8 @@ resource "aws_api_gateway_deployment" "fcm_deployment" {
       aws_api_gateway_integration.messages_send_integration.id,
       aws_api_gateway_integration.test_ack_integration.id,
       aws_api_gateway_integration.test_status_integration.id,
+      aws_api_gateway_method.messages_ack_post.id,
+      aws_api_gateway_integration.messages_ack_integration.id,
     ]))
   }
 

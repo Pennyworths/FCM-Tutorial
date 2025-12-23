@@ -61,32 +61,78 @@ func SendMessageHandler(ctx context.Context, request events.APIGatewayProxyReque
 		return logger.InternalServerError(ctx, err, "Database query failed")
 	}
 
-	// Send message to each device
+	// Parse data to check if it's e2e_test and extract nonce
+	// Note: e2e_test messages already have nonce in request data (from test script)
+	//       Regular messages need nonce generated and added to data
+	var dataMap map[string]interface{}
+	var nonce string
+	isE2ETest := false
+
+	if len(sendMessageRequest.Data) > 0 {
+		if err := json.Unmarshal(sendMessageRequest.Data, &dataMap); err == nil {
+			// Check if this is an e2e_test message (nonce already provided in request data)
+			if dataType, ok := dataMap["type"].(string); ok && dataType == "e2e_test" {
+				isE2ETest = true
+				if nonceVal, ok := dataMap["nonce"].(string); ok && nonceVal != "" {
+					nonce = nonceVal
+				}
+			}
+		}
+	}
+
+	// Prepare final data for FCM
+	// FCM requires all data field values to be strings, so we normalize the data
+	// For non-e2e_test messages: generate nonce and add to data
+	var finalData json.RawMessage = sendMessageRequest.Data
+	if len(devices) > 0 {
+		// Convert all values to strings to ensure type consistency with sendMessageToDevice
+		// which expects map[string]string
+		stringDataMap := make(map[string]string)
+		
+		if dataMap != nil {
+			// Convert existing values to strings (handles numbers, booleans, etc.)
+			for k, v := range dataMap {
+				stringDataMap[k] = fmt.Sprintf("%v", v)
+			}
+		}
+		
+		if !isE2ETest {
+			// Generate nonce for regular messages (e2e_test already has nonce in data)
+			nonce = fmt.Sprintf("%s-%d", sendMessageRequest.UserID, time.Now().UnixNano())
+			stringDataMap["nonce"] = nonce
+		}
+		
+		// Marshal to json.RawMessage for FCM (only if we have data to send)
+		if len(stringDataMap) > 0 {
+			finalData, err = json.Marshal(stringDataMap)
+			if err != nil {
+				return logger.InternalServerError(ctx, err, "Failed to marshal data payload")
+			}
+		}
+	}
+
+	// Send message to each device (data includes nonce for both e2e_test and regular messages)
 	for _, device := range devices {
-		err = sendMessageToDevice(ctx, device.FcmToken, sendMessageRequest.Title, sendMessageRequest.Body, sendMessageRequest.Data)
+		err = sendMessageToDevice(ctx, device.FcmToken, sendMessageRequest.Title, sendMessageRequest.Body, finalData)
 		if err != nil {
 			return logger.InternalServerError(ctx, err, "Failed to send message to device")
 		}
 	}
 
-	// If data.type == "e2e_test" and data.nonce is present, insert into test_runs
-	if len(sendMessageRequest.Data) > 0 {
-		var dataMap map[string]interface{}
-		if err := json.Unmarshal(sendMessageRequest.Data, &dataMap); err == nil {
-			if dataType, ok := dataMap["type"].(string); ok && dataType == "e2e_test" {
-				if nonce, ok := dataMap["nonce"].(string); ok && nonce != "" {
-					// Insert test run record
-					err = queries.CreateTestRun(ctx, sqlc.CreateTestRunParams{
-						Nonce:  nonce,
-						UserID: sendMessageRequest.UserID,
-					})
-					if err != nil {
-						logger.Error(ctx, err, "Failed to create test run record")
-						// Don't fail the request if test run creation fails, just log it
-					} else {
-						logger.Info(ctx, "Created test run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
-					}
-				}
+	// Create test run record for tracking (both e2e_test and regular messages)
+	if nonce != "" {
+		err = queries.CreateTestRun(ctx, sqlc.CreateTestRunParams{
+			Nonce:  nonce,
+			UserID: sendMessageRequest.UserID,
+		})
+		if err != nil {
+			logger.Error(ctx, err, "Failed to create test run record")
+			// Don't fail the request if test run creation fails, just log it
+		} else {
+			if isE2ETest {
+				logger.Info(ctx, "Created test run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
+			} else {
+				logger.Info(ctx, "Created message run record: nonce=%s, user_id=%s", nonce, sendMessageRequest.UserID)
 			}
 		}
 	}
@@ -132,12 +178,33 @@ func sendMessageToDevice(ctx context.Context, fcmToken string, title string, bod
 				"title": title,
 				"body":  body,
 			},
+			// Android-specific configuration
+			"android": map[string]interface{}{
+				"priority": "high", // Valid values: "normal" or "high"
+			},
+			// iOS-specific configuration
+			"apns": map[string]interface{}{
+				"headers": map[string]interface{}{
+					"apns-priority": "10", // Valid values: "5" (normal) or "10" (high)
+				},
+			},
 		},
 	}
 
-	// Add data if provided
+	// Add analytics_label if we have message type (for tracking)
+	// This helps Firebase Analytics track message delivery
 	if len(dataMap) > 0 {
+		if msgType, ok := dataMap["type"]; ok && msgType != "" {
+			message["message"].(map[string]interface{})["fcm_options"] = map[string]interface{}{
+				"analytics_label": fmt.Sprintf("msg_%s", msgType),
+			}
+		}
 		message["message"].(map[string]interface{})["data"] = dataMap
+	} else {
+		// Default analytics label for regular messages
+		message["message"].(map[string]interface{})["fcm_options"] = map[string]interface{}{
+			"analytics_label": "msg_regular",
+		}
 	}
 
 	// Marshal request body

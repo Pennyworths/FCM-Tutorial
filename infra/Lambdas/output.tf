@@ -33,6 +33,16 @@ output "test_ack_function_name" {
   value       = aws_lambda_function.test_ack.function_name
 }
 
+output "message_ack_function_arn" {
+  description = "ARN of messageAckHandler Lambda function"
+  value       = aws_lambda_function.message_ack.arn
+}
+
+output "message_ack_function_name" {
+  description = "Name of messageAckHandler Lambda function"
+  value       = aws_lambda_function.message_ack.function_name
+}
+
 output "test_status_function_arn" {
   description = "ARN of testStatusHandler Lambda function"
   value       = aws_lambda_function.test_status.arn

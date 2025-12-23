@@ -202,13 +202,14 @@ resource "aws_lambda_function" "send_message" {
 
   environment {
     variables = {
-      LAMBDA_HANDLER          = "SendMessageHandler"
-      RDS_HOST                = var.rds_host
-      RDS_PORT                = tostring(var.rds_port)
-      RDS_DB_NAME             = var.rds_db_name
-      RDS_USERNAME            = var.rds_username
-      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
-      SECRET_ARN              = var.secrets_manager_secret_arn
+      LAMBDA_HANDLER            = "SendMessageHandler"
+      RDS_HOST                  = var.rds_host
+      RDS_PORT                  = tostring(var.rds_port)
+      RDS_DB_NAME               = var.rds_db_name
+      RDS_USERNAME              = var.rds_username
+      RDS_PASSWORD_SECRET_ARN   = var.rds_password_secret_arn
+      SECRET_ARN                = var.secrets_manager_secret_arn
+      MESSAGE_ACK_FUNCTION_NAME = "${var.environment}-messageAckHandler"
     }
   }
 
@@ -255,6 +256,47 @@ resource "aws_lambda_function" "test_ack" {
 
   tags = {
     Name = "${var.environment}-testAckHandler"
+  }
+}
+
+# Lambda function: messageAckHandler
+# IMPORTANT: Ensure ECR image exists before applying (see register_device function comment above)
+resource "aws_lambda_function" "message_ack" {
+  function_name = "${var.environment}-messageAckHandler"
+  role          = aws_iam_role.lambda.arn
+  package_type  = "Image"
+  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
+
+  # Container image URI from ECR - image must exist in ECR first
+  # Uses the same Dockerfile as other API functions but with different tag
+  image_uri = "${aws_ecr_repository.lambda_images.repository_url}:message-ack-${var.image_tag}"
+
+  # For Lambda provided runtime, handler is the executable name
+  # The entrypoint script will call /var/runtime/bootstrap
+  image_config {
+    command = ["bootstrap"]
+  }
+
+  vpc_config {
+    subnet_ids         = var.private_subnet_ids
+    security_group_ids = [var.lambda_security_group_id]
+  }
+
+  environment {
+    variables = {
+      LAMBDA_HANDLER          = "MessageAckHandler"
+      RDS_HOST                = var.rds_host
+      RDS_PORT                = tostring(var.rds_port)
+      RDS_DB_NAME             = var.rds_db_name
+      RDS_USERNAME            = var.rds_username
+      RDS_PASSWORD_SECRET_ARN = var.rds_password_secret_arn
+      SECRET_ARN              = var.secrets_manager_secret_arn
+    }
+  }
+
+  tags = {
+    Name = "${var.environment}-messageAckHandler"
   }
 }
 
